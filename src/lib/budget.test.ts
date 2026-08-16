@@ -156,7 +156,7 @@ describe("statusFor", () => {
 
   it("calls out a week with no sleep in it at all", () => {
     const status = verdict({ study: 60, work: 40 });
-    expect(status.text).toContain("three days");
+    expect(status.text).toContain("not a week anyone survives");
   });
 
   it("prefers the empty-week line over the no-sleep one", () => {

@@ -83,26 +83,72 @@ export function applyScenarios(
 }
 
 /**
- * Takes a scenario back out again.
+ * The week the page is editing, and the what-ifs laid over it.
  *
- * Toggling is add-then-subtract on the sliders themselves rather than a second
- * layer of state, so what the sliders show is always the week the page is
- * describing. The one place that isn't exactly reversible is a category that
- * hit its ceiling on the way in; every scenario is sized to stay clear of one
- * from the presets, and a slider that shows a number the visitor can also set
- * by hand is worth more than perfect symmetry.
+ * `base` is the only thing a visitor's actions change. Scenarios are a lens on
+ * it, never an edit of it — which is what makes switching one off give back
+ * exactly the week they had.
+ *
+ * The previous model applied the deltas to the slider values and subtracted
+ * them again on the way out. It read more simply and it was lossy: study 55
+ * plus exam week clamps at the 60 ceiling, and toggling the scenario off
+ * returned 45. I had written a comment arguing that away ("worth more than
+ * perfect symmetry"). It wasn't; it was silently discarding something the
+ * visitor typed. `scenarios.test.ts` now holds the round trip.
  */
-export function unapplyScenario(
-  base: Allocations,
-  id: string,
-): Allocations {
-  const scenario = scenarioById(id);
-  if (!scenario) return { ...base };
+export interface WeekState {
+  base: Allocations;
+  active: readonly string[];
+}
 
-  const result: Allocations = { ...base };
-  for (const [categoryId, delta] of Object.entries(scenario.delta)) {
-    result[categoryId] = Math.max(0, (result[categoryId] ?? 0) - delta);
-  }
+/** Hours the active scenarios add to one category. */
+export function deltaFor(
+  active: readonly string[],
+  categoryId: string,
+): number {
+  return active.reduce(
+    (sum, id) => sum + (scenarioById(id)?.delta[categoryId] ?? 0),
+    0,
+  );
+}
 
-  return Object.fromEntries(CATEGORIES.map(({ id: c }) => [c, result[c] ?? 0]));
+/** The allocation to draw: the base with every active scenario laid over it. */
+export function displayed(state: WeekState): Allocations {
+  return applyScenarios(state.base, state.active);
+}
+
+export function toggleScenario(state: WeekState, id: string): WeekState {
+  if (!scenarioById(id)) return state;
+
+  return {
+    base: state.base,
+    active: state.active.includes(id)
+      ? state.active.filter((s) => s !== id)
+      : [...state.active, id],
+  };
+}
+
+/**
+ * The visitor drags a slider to `value`, so `value` is what they must see.
+ *
+ * A scenario is adding hours to this category, so the base has to absorb the
+ * difference. It floors at zero: if they drag below what the scenario alone
+ * contributes, the scenario's own hours are the floor, and the number they
+ * asked for isn't reachable while it's switched on.
+ */
+export function setCategory(
+  state: WeekState,
+  categoryId: string,
+  value: number,
+): WeekState {
+  const max = categoryById(categoryId)?.max ?? 0;
+  const wanted = Math.max(0, Math.min(value, max));
+
+  return {
+    active: state.active,
+    base: {
+      ...state.base,
+      [categoryId]: Math.max(0, wanted - deltaFor(state.active, categoryId)),
+    },
+  };
 }

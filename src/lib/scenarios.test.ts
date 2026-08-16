@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { CATEGORIES, PRESETS, TOTAL_HOURS, preset, summarise } from "./budget";
-import { SCENARIOS, applyScenarios, unapplyScenario } from "./scenarios";
+import {
+  SCENARIOS,
+  type WeekState,
+  applyScenarios,
+  displayed,
+  setCategory,
+  toggleScenario,
+} from "./scenarios";
 
 describe("scenarios", () => {
   it("only ever names categories that exist", () => {
@@ -63,29 +70,42 @@ describe("scenarios", () => {
   });
 });
 
+// These four replace an earlier set that tested the same guarantees against
+// `unapplyScenario`. They passed, on a function that was losing hours — every
+// one of them started from `PRESETS.balanced`, which sits clear of every
+// ceiling, so none could ever have caught the clamp. Starting from a week
+// that is near its limits is the whole difference.
 describe("toggling back off", () => {
   it("returns the week to exactly where it started", () => {
+    // Deliberately close to the ceilings the old model lost hours against.
+    const base = { ...PRESETS.balanced, study: 55, sleep: 62, commute: 14 };
+
     for (const { id, label } of SCENARIOS) {
-      const on = applyScenarios(PRESETS.balanced, [id]);
-      const off = unapplyScenario(on, id);
-      expect(off, `${label} did not undo cleanly`).toEqual(PRESETS.balanced);
+      const on = toggleScenario({ base, active: [] }, id);
+      expect(displayed(toggleScenario(on, id)), `${label} did not undo cleanly`)
+        .toEqual(base);
     }
   });
 
   it("undoes a stack in any order", () => {
-    const ids = SCENARIOS.map((s) => s.id);
-    let week = applyScenarios(PRESETS.balanced, ids);
-    for (const id of [...ids].reverse()) week = unapplyScenario(week, id);
-    expect(week).toEqual(PRESETS.balanced);
+    const base = { ...PRESETS.balanced, study: 55, sleep: 62 };
+    let state: WeekState = { base, active: [] };
+
+    for (const s of SCENARIOS) state = toggleScenario(state, s.id);
+    for (const s of [...SCENARIOS].reverse()) state = toggleScenario(state, s.id);
+
+    expect(displayed(state)).toEqual(base);
   });
 
   it("never drives a category below zero", () => {
-    const empty = applyScenarios(PRESETS.fresh, []);
-    expect(unapplyScenario(empty, "exam").study).toBe(0);
+    const state = { base: PRESETS.fresh, active: ["exam"] };
+    expect(setCategory(state, "study", 0).base.study).toBe(0);
+    expect(displayed(setCategory(state, "study", 0)).study).toBe(15);
   });
 
   it("leaves the week alone for an id it does not know", () => {
-    expect(unapplyScenario(PRESETS.balanced, "nope")).toEqual(PRESETS.balanced);
+    const state = { base: PRESETS.balanced, active: [] };
+    expect(displayed(toggleScenario(state, "nope"))).toEqual(PRESETS.balanced);
   });
 });
 
@@ -102,5 +122,57 @@ describe("the claim the buttons make", () => {
       applyScenarios(PRESETS.balanced, SCENARIOS.map((s) => s.id)),
     ).total;
     expect(together).toBeGreaterThan(TOTAL_HOURS);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Toggling a scenario must not cost the visitor what they typed.
+//
+// The old model applied deltas to the slider values themselves and subtracted
+// them again on the way out. That is lossy the moment a category clamps at its
+// ceiling: study 55 + exam week 15 clamps to 60, and switching exam week back
+// off leaves 45. The visitor's 55 is gone and nothing told them.
+//
+// So a scenario is now a *view* over a base allocation, never an edit of it.
+// These tests are the contract that keeps it that way.
+// ---------------------------------------------------------------------------
+describe("scenario state is reversible", () => {
+  it("restores the exact allocation when a scenario is switched off", () => {
+    const base = { ...PRESETS.balanced, study: 55 };
+    const on = toggleScenario({ base, active: [] }, "exam");
+    const off = toggleScenario(on, "exam");
+
+    expect(displayed(on).study, "exam week should clamp study at its max").toBe(60);
+    expect(
+      displayed(off),
+      "Switching a scenario off left the visitor with different numbers than " +
+        "they had before switching it on. A what-if that edits the week is a " +
+        "what-if that destroys it.",
+    ).toEqual(base);
+  });
+
+  it("survives every scenario being toggled on and off in any order", () => {
+    const base = { ...PRESETS.balanced, study: 58, sleep: 60, commute: 12 };
+    let state: WeekState = { base, active: [] };
+
+    for (const s of SCENARIOS) state = toggleScenario(state, s.id);
+    for (const s of [...SCENARIOS].reverse()) state = toggleScenario(state, s.id);
+
+    expect(state.active).toEqual([]);
+    expect(displayed(state), "a full round trip changed the week").toEqual(base);
+  });
+
+  it("lets the visitor edit a slider while a scenario is active", () => {
+    const base = { ...PRESETS.balanced, study: 20 };
+    const on = toggleScenario({ base, active: [] }, "exam");
+
+    // They drag study to 40 while exam week is on; that is the number they
+    // want to see, so it is the number the page must show.
+    const edited = setCategory(on, "study", 40);
+    expect(displayed(edited).study).toBe(40);
+
+    // And switching exam week off leaves the week they built, minus the exam.
+    const off = toggleScenario(edited, "exam");
+    expect(displayed(off).study).toBe(25);
   });
 });

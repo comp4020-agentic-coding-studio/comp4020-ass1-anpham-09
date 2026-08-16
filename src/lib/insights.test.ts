@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { PRESETS, preset, summarise } from "./budget";
+import { type Allocations, PRESETS, preset, summarise } from "./budget";
 import { costOfOneMoreHour, insightsFor, revealGuess } from "./insights";
 
 describe("insightsFor", () => {
@@ -106,5 +106,42 @@ describe("revealGuess", () => {
 
   it("refuses a negative guess rather than reporting nonsense", () => {
     expect(revealGuess(-5, 27).text).toContain("You guessed 0 hours");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The sentence says "less than half". The guard has to mean it.
+//
+// It used to fire whenever free time was below sleep at all, so a week with 40
+// free hours and 56 asleep told the visitor 40 was less than half of 56. On an
+// explainer, a number that does not survive being checked costs more than the
+// insight was ever worth.
+// ---------------------------------------------------------------------------
+describe("free-vs-sleep says something arithmetically true", () => {
+  const fired = (a: Allocations) =>
+    insightsFor(a, 99).find((i) => i.id === "free-vs-sleep");
+
+  it("stays quiet when free time is more than half of sleep", () => {
+    // 56 asleep, 72 committed elsewhere, so 40 free. 40 > 28.
+    const week = preset({ sleep: 56, study: 40, work: 32 });
+    expect(summarise(week).remaining).toBe(40);
+
+    expect(
+      fired(week),
+      "Claimed 40 free hours is 'less than half' of 56 hours asleep. It is not.",
+    ).toBeUndefined();
+  });
+
+  it("still fires when free time really is less than half of sleep", () => {
+    const week = preset({ sleep: 56, study: 60, work: 32, commute: 10 });
+    expect(summarise(week).remaining).toBeLessThan(28);
+    expect(fired(week), "the insight has stopped firing when it is true").toBeDefined();
+  });
+
+  it("is quiet exactly at the boundary", () => {
+    // 56 asleep, 28 free. 28 is not less than half of 56.
+    const week = preset({ sleep: 56, study: 60, work: 24 });
+    expect(summarise(week).remaining).toBe(28);
+    expect(fired(week), "28 is exactly half of 56, not less than half").toBeUndefined();
   });
 });

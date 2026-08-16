@@ -273,7 +273,9 @@ export function statusFor(
   if ((allocations.sleep ?? 0) === 0) {
     return {
       modifier: "status-over",
-      text: "Zero sleep? You'll last about three days. Give it some hours.",
+      // Was "you'll last about three days" — a physiological claim with no
+      // source behind it. The joke survives without the false precision.
+      text: "Zero sleep? That is not a week anyone survives. Give it some hours.",
     };
   }
   if (over) {

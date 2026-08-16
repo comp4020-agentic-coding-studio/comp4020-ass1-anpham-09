@@ -330,12 +330,16 @@ const freeCells = week.cells.filter((c) => c === "free").length;
       import {
         CATEGORIES,
         DEFAULT_ALLOCATION,
-        type Allocations,
         summarise,
       } from "../lib/budget";
       import { PRESETS } from "../lib/budget";
       import { render } from "../lib/render";
-      import { applyScenarios, unapplyScenario } from "../lib/scenarios";
+      import {
+        type WeekState,
+        displayed,
+        setCategory,
+        toggleScenario,
+      } from "../lib/scenarios";
       import { decodeState, encodeState } from "../lib/share";
 
       // Thin adapter: read the DOM, call the modules, write the result back.
@@ -346,39 +350,50 @@ const freeCells = week.cells.filter((c) => c === "free").length;
 
       const restored = decodeState(location.hash);
 
-      let allocations: Allocations = restored.allocations ?? { ...DEFAULT_ALLOCATION };
-      let active: string[] = restored.scenarios ?? [];
+      // The hash carries the *base* week and the scenarios laid over it, kept
+      // apart for the same reason the state is: a scenario is a lens, not an
+      // edit. Restoring is then a plain read, with nothing to un-double.
+      let state: WeekState = {
+        base: restored.allocations ?? { ...DEFAULT_ALLOCATION },
+        active: restored.scenarios ?? [],
+      };
       let guess: number | null = restored.guess ?? null;
 
-      // A restored hash carries the week *with* its scenarios already in it,
-      // so re-applying them would double the deltas.
-      if (restored.allocations === undefined && active.length) {
-        allocations = applyScenarios(allocations, active);
-      }
-
       const writeSliders = () => {
+        const shown = displayed(state);
         for (const slider of sliders) {
           const id = slider.dataset.category ?? "";
-          if (id in allocations) slider.value = String(allocations[id]);
+          if (id in shown) slider.value = String(shown[id]);
         }
       };
 
       const writeHash = () => {
-        const hash = encodeState({ allocations, guess: guess ?? undefined, scenarios: active });
+        const hash = encodeState({
+          allocations: state.base,
+          guess: guess ?? undefined,
+          scenarios: [...state.active],
+        });
         history.replaceState(null, "", `#${hash}`);
       };
 
       const paint = (persist = true) => {
-        render(document, { allocations, active, guess });
+        render(document, {
+          allocations: displayed(state),
+          active: state.active,
+          guess,
+        });
         if (persist) writeHash();
       };
 
       for (const slider of sliders) {
         slider.addEventListener("input", () => {
-          allocations = {
-            ...allocations,
-            [slider.dataset.category ?? ""]: Number(slider.value),
-          };
+          state = setCategory(
+            state,
+            slider.dataset.category ?? "",
+            Number(slider.value),
+          );
+          // Resync, because a scenario sets a floor the drag cannot go under.
+          writeSliders();
           paint();
         });
       }
@@ -387,8 +402,7 @@ const freeCells = week.cells.filter((c) => c === "free").length;
         button.addEventListener("click", () => {
           const values = PRESETS[button.dataset.preset ?? ""];
           if (!values) return;
-          allocations = { ...values };
-          active = [];
+          state = { base: { ...values }, active: [] };
           writeSliders();
           paint();
         });
@@ -396,14 +410,7 @@ const freeCells = week.cells.filter((c) => c === "free").length;
 
       for (const button of document.querySelectorAll<HTMLButtonElement>("[data-scenario]")) {
         button.addEventListener("click", () => {
-          const id = button.dataset.scenario ?? "";
-          if (active.includes(id)) {
-            active = active.filter((s) => s !== id);
-            allocations = unapplyScenario(allocations, id);
-          } else {
-            active = [...active, id];
-            allocations = applyScenarios(allocations, [id]);
-          }
+          state = toggleScenario(state, button.dataset.scenario ?? "");
           writeSliders();
           paint();
         });
@@ -444,7 +451,7 @@ const freeCells = week.cells.filter((c) => c === "free").length;
       // different totals this is where it would surface, in dev only.
       if (import.meta.env.DEV) {
         const shown = document.querySelector('[data-testid="budget-used"]')?.textContent ?? "";
-        const expected = `${summarise(allocations).total} / `;
+        const expected = `${summarise(displayed(state)).total} / `;
         if (!shown.includes(expected)) {
           console.warn(`[budget] server/client mismatch: ${shown} vs ${expected}`, CATEGORIES.length);
         }

@@ -42,7 +42,10 @@ const RULES: Rule[] = [
   // biggest block in their week.
   (a, s) => {
     const sleep = a.sleep ?? 0;
-    if (s.over || sleep === 0 || s.remaining >= sleep) return null;
+    // Against half, because the sentence says "half". Guarding on `sleep`
+    // itself let this fire on 40 free hours against 56 asleep and call 40
+    // less than half of 56.
+    if (s.over || sleep === 0 || s.remaining >= sleep / 2) return null;
     return {
       id: "free-vs-sleep",
       tone: "sharp",
@@ -84,7 +87,10 @@ const RULES: Rule[] = [
     return {
       id: "overdrawn",
       tone: "sharp",
-      text: `You are ${hrs(-s.remaining)} hours overdrawn. Those hours come out of sleep first — they always do.`,
+      // "they always do" was an unsourced absolute about every student
+      // everywhere. The overdraft is arithmetic and stays stated as fact; where
+      // the hours come from is the page's reading, and now says so.
+      text: `You are ${hrs(-s.remaining)} hours overdrawn. The week will not stretch, so something here is already coming out of sleep.`,
     };
   },
   (_a, s) => {
