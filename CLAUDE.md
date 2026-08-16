@@ -1,8 +1,8 @@
 # COMP4020 prototype
 
-This is your starter repo for a COMP4020 prototype: a static site written in
-HTML/CSS/TypeScript that builds to plain HTML/CSS/JS and deploys to GitHub
-Pages. The **deployed site is what gets marked** --- not this repo, and not "it
+This is your starter repo for a COMP4020 prototype: a static site built with
+**Astro** that builds to plain HTML/CSS/JS and deploys to GitHub Pages. The
+**deployed site is what gets marked** --- not this repo, and not "it
 works on my machine". It's marked live in Chrome against the deployed URL at two
 viewports --- 1920×1080 (desktop) and 390×844 (phone) --- and both count in
 full, so make that artefact good at both and use the checks below to know
@@ -53,8 +53,9 @@ They also carry a mark at a crit: the sweep runs fifteen minutes after your
 cutoff, and green checks there are worth half that week's shipped mark. Still
 running counts as not green, so ship with time for CI to finish.
 
-- **typecheck** --- `tsc --noEmit` runs first in `pnpm check`, so a type error
-  stops the roster before the build even starts. The types are extra
+- **typecheck** --- `astro check` runs first in `pnpm check`, so a type error
+  stops the roster before the build even starts. (`tsc --noEmit` can't read
+  `.astro` files, which is why this repo uses `astro check` instead.) The types are extra
   backpressure: a red here is the compiler telling you a claim in the code is
   false.
 - **build** --- the site must build (`pnpm build`). A build failure means the
@@ -96,24 +97,51 @@ in the course the spec will ask you to show how you tested both. When you do,
 read a green performance result honestly: it's a lab estimate from one run on a
 CI machine, not proof the site is fast for real users.
 
-## The stack is swappable
+## The stack: Astro (chosen in C2, kept for A1)
 
-Out of the box this is plain HTML/CSS/TypeScript on Vite, and every `.html` file
-in the repo is a page: add pages, link them, and the build picks them up with no
-config. That's a default, not a rule (unless the week's spec says otherwise).
-You can swap in Astro or any other static generator, because nothing in CI names
-a tool --- the whole contract is:
+The template shipped plain HTML/CSS/TypeScript on Vite. C2 swapped to Astro and
+A1 keeps it — the build config carried across, the prototype source did not.
+Nothing in CI names a tool; the whole contract is:
 
 - `pnpm build` emits the complete site into `dist/`
 - the `package.json` scripts (`check`, `check:evidence`, `build`) keep working
 - whatever lands in `dist/` still passes the invariants in `spec/`
 
-Two things bite in a swap. The deployed site lives under a path
-(`…github.io/<repo>/`), so configure your generator's base path --- this
-template's Vite config uses relative asset URLs to sidestep that, but most
-generators (Astro included) need `base` set explicitly, and getting it wrong
-looks fine locally while every asset 404s on the live URL. And commit the
-updated `pnpm-lock.yaml`: CI installs with `--frozen-lockfile`.
+Facts about this stack to work from, rather than rediscover:
+
+- **Routing is `src/pages/`.** A file there is a route; there is no build config
+  to update when you add a page. Do not add `.html` files at the repo root —
+  that was the Vite template's convention and Astro will ignore them.
+- **`base` is load-bearing.** The site deploys under
+  `…github.io/comp4020-ass1-anpham-09/`, and `astro.config.mjs` sets `base`
+  accordingly. Build internal links and asset URLs from
+  `import.meta.env.BASE_URL`, never as `/foo`. A root-absolute URL looks perfect
+  on `pnpm dev` and 404s on the live site; `spec/links.test.ts` guards this, so
+  treat that test going red as the deploy already being broken.
+- **Don't hand-write that prefix — call `route()`.** `src/lib/url.ts` is the one
+  place the base path is assembled, and `src/lib/url.test.ts` holds it. A rule I
+  have to remember is weaker than a function with tests around it, so new pages
+  and components import `route()` rather than interpolating `BASE_URL` again.
+  It emits a trailing slash, because Astro builds `menu/index.html` and asking
+  for `/menu` makes Pages issue a redirect.
+- **Astro eats the whitespace between a text node and a following element.**
+  `…the source is\n<a href=…>` renders as `…the source is<a href=…>` — no space.
+  Write `is{" "}` before the link. Nothing in the check roster can see this,
+  because every sensor is about structure and this is about a space: it only
+  showed up on the rendered page.
+- **Class names are plain kebab-case.** `stylelint-config-standard`'s
+  `selector-class-pattern` rejects BEM's `__` and `--`, so `header-inner`, not
+  `site-header__inner`. Also: `@media (width >= 48rem)` not `(min-width: …)`
+  (`media-feature-range-notation`), modern `rgb(0 0 0 / 10%)` colour syntax, and
+  watch `no-descending-specificity` when a bare `a` rule follows an `a:hover`
+  one — `:any-link` fixes it without disabling the rule.
+- **`astro check`, not `tsc`.** See the typecheck sensor above.
+- **Styles scoped inside `.astro` files are not linted.** `stylelint` only reads
+  `**/*.css`, so CSS written in a component's `<style>` block has no sensor on
+  it. Put shared styles in a real `.css` file if you want them checked.
+- **`.astro/` is generated** and gitignored; it's rebuilt by every `dev` and
+  `build`. Never edit or commit it.
+- **Commit the updated `pnpm-lock.yaml`**: CI installs with `--frozen-lockfile`.
 
 ## Your process is part of the mark
 
