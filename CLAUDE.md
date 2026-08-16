@@ -136,6 +136,24 @@ Facts about this stack to work from, rather than rediscover:
   watch `no-descending-specificity` when a bare `a` rule follows an `a:hover`
   one — `:any-link` fixes it without disabling the rule.
 - **`astro check`, not `tsc`.** See the typecheck sensor above.
+- **A `<script>` with any attribute is `is:inline`, and inline means invisible.**
+  `define:vars`, or any other attribute, makes Astro ship the block untouched:
+  no imports, no TypeScript, no typechecking. The symptom is `astro check`
+  reporting perfectly real variables as unresolvable names while the page works
+  fine in the browser. Believe the hint. Behaviour that the typechecker cannot
+  see is also behaviour no test can import, which is how a page ends up with an
+  interaction nothing asserts.
+- **Behaviour lives in `src/lib/`, markup lives in the page.** A `.astro` file
+  owns structure; anything with logic in it gets a module, and the script tag is
+  a thin adapter that reads the DOM and calls it. The rule that makes this pay
+  off: any function that touches the DOM takes its root as an argument rather
+  than reaching for `document`, so a test can hand it a JSDOM built from the
+  real `dist/` output and assert on what the visitor would see.
+- **A test whose name makes a claim its body doesn't check is worse than no
+  test.** If the assertion is hard to write, that is usually the code's shape
+  talking, not the test's — move the code. And before trusting a new test,
+  break the thing it covers and confirm it goes red; a test that has never
+  failed hasn't told you anything yet.
 - **Styles scoped inside `.astro` files are not linted.** `stylelint` only reads
   `**/*.css`, so CSS written in a component's `<style>` block has no sensor on
   it. Put shared styles in a real `.css` file if you want them checked.
