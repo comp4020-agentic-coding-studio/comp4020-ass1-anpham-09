@@ -201,6 +201,26 @@ holding it is this file.
   body. Dark mode is then one `prefers-color-scheme` block redefining the
   tokens, not fifty overrides — and a hardcoded colour is a bug that only shows
   up in the theme you weren't looking at.
+- **Colour belongs to the grid, and red belongs to being over 168.** Everything
+  that isn't a category cell is paper and ink: no filled navy buttons, no green
+  progress bar, no tinted card. The nine `--cat-*` tokens may appear anywhere
+  they are doing category work (the grid, the legend, the breakdown bars,
+  the debt cells) and nowhere else, and `--heat-over` is reserved for the one
+  state the page is about. A rainbow page has no emphasis left to spend when
+  the week finally breaks; this rule is what keeps that spend available.
+- **Chrome is a hairline or it is nothing.** Boxes — background, border,
+  radius, all three at once — were how the first draft separated one thing from
+  the next, and eleven of them make a dashboard, which is the genre this page is
+  arguing against. Separation comes from whitespace first, a 1px rule second.
+  The one surviving box is `.week-grid`, and it survives because the debt cells
+  sitting *outside* it are the whole point.
+- **The serif is the display voice: the proposition and the running total, and
+  nothing else.** Those are the two things the page is about — the claim and the
+  number testing it — so they share a face and every section heading is
+  letterspaced uppercase sans at `--type-xs` instead. The scale jump between the
+  two is the hierarchy; nothing in the middle needs to compete. No web font —
+  an external font request is a failure mode on a deployed page that nothing in
+  the check roster would catch.
 - **A swatch colour is a contract, not a preference.** The nine `--cat-*` and
   `--free-cell` tokens must stay at least `0.12` apart in OKLab ΔE, in *both*
   themes, and `spec/palette.test.ts` holds that. The grid is 168 squares whose
