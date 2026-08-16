@@ -191,10 +191,25 @@ holding it is this file.
   browser both call the same module, so the server-rendered snapshot and the
   first client repaint cannot disagree. A number computed twice in two places is
   a number that will drift.
+- **A repaint query is scoped to what it repaints.** `render()` takes a root so
+  a test can hand it a JSDOM, which makes it tempting to query from that root
+  for everything — but `[data-hour-cell]` matches the legend swatches as well as
+  the 168 grid cells (deliberately: they take their colour from the same rules),
+  so a document-wide query silently rewrote the key to the grid on every
+  repaint. Query from the element that owns the thing you're changing.
 - **Colour only ever comes from a custom property.** No literal hex in a rule
   body. Dark mode is then one `prefers-color-scheme` block redefining the
   tokens, not fifty overrides — and a hardcoded colour is a bug that only shows
   up in the theme you weren't looking at.
+- **A swatch colour is a contract, not a preference.** The nine `--cat-*` and
+  `--free-cell` tokens must stay at least `0.12` apart in OKLab ΔE, in *both*
+  themes, and `spec/palette.test.ts` holds that. The grid is 168 squares whose
+  only job is being read at a glance, so two categories that look alike is a
+  broken page, not a taste question. Two things learned the hard way: RGB
+  distance and hue angle both **rank the pairs backwards** — don't reach for
+  them — and the floor is a floor, never an objective. Maximising minimum
+  distance produces nine gamut extremes and assigns hot pink to "sleep". Clear
+  the floor, then choose by meaning.
 - **Every transition and animation needs a `prefers-reduced-motion` escape.**
   Wrap them, or add them to the blanket `@media (prefers-reduced-motion: reduce)`
   reset at the bottom of `global.css`. Motion that can't be turned off is an

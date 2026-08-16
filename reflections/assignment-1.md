@@ -28,3 +28,13 @@ five times as noise.
 I want to be the kind of developer who is suspicious of a green check, and who
 notices when a passing test is only reporting the shape of an obstacle I decided
 not to move.
+
+The colour work extended that further than I expected. I wrote two different
+measures of "are these two swatches distinguishable", and both confidently
+ranked the pair I could not tell apart as *further* apart than pairs that were
+obviously distinct. A number is not evidence just because it is a number. The
+version that shipped is the one I validated against a case I already knew the
+answer to — and then, having got a metric that worked, I had to stop myself
+optimising against it, because the palette that maximises it assigns hot pink
+to "sleep". A good measurement tells you when you have gone wrong. It does not
+tell you what to do.
