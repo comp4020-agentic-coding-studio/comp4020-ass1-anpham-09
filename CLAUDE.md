@@ -174,6 +174,41 @@ Facts about this stack to work from, rather than rediscover:
 - **Styles scoped inside `.astro` files are not linted.** `stylelint` only reads
   `**/*.css`, so CSS written in a component's `<style>` block has no sensor on
   it. Put shared styles in a real `.css` file if you want them checked.
+
+### Rules for the page itself
+
+These are constraints on the artefact, not on the tooling. Each one is here
+because it's invisible to every sensor in the roster above, so the only thing
+holding it is this file.
+
+- **The argument must survive JavaScript being off.** The opening allocation is
+  computed in Astro frontmatter and written into the markup — the budget
+  readout, the week grid, the bars and the insights all ship already populated.
+  The client script's job is to *re-*paint that, never to paint it for the first
+  time. Test the rule by reading `dist/index.html`: if the thesis isn't legible
+  in the raw HTML, it's broken for anyone whose bundle 404s.
+- **Every rendered number comes from one pure function.** Frontmatter and the
+  browser both call the same module, so the server-rendered snapshot and the
+  first client repaint cannot disagree. A number computed twice in two places is
+  a number that will drift.
+- **Colour only ever comes from a custom property.** No literal hex in a rule
+  body. Dark mode is then one `prefers-color-scheme` block redefining the
+  tokens, not fifty overrides — and a hardcoded colour is a bug that only shows
+  up in the theme you weren't looking at.
+- **Every transition and animation needs a `prefers-reduced-motion` escape.**
+  Wrap them, or add them to the blanket `@media (prefers-reduced-motion: reduce)`
+  reset at the bottom of `global.css`. Motion that can't be turned off is an
+  accessibility defect, and vestibular disorders are not an edge case.
+- **No `100vh`.** Mobile Safari's address bar makes it lie, and the marker
+  resizes mid-use. Use `dvh` with a fallback, or don't do viewport-height layout
+  at all. Sticky bars use `position: sticky; top: 0`, never viewport arithmetic.
+- **Interactive targets are at least 44×44px** (WCAG 2.5.5). That's the slider
+  thumb, not just the track, and it's the reason the preset buttons carry more
+  padding than they look like they need.
+- **A statistic on the page needs a source and an honest label.** If the real
+  figure can't be found or doesn't map onto our categories, cut the claim rather
+  than round it into something plausible. A made-up number on a deployed page is
+  the one failure no amount of polish recovers from.
 - **`.astro/` is generated** and gitignored; it's rebuilt by every `dev` and
   `build`. Never edit or commit it.
 - **Commit the updated `pnpm-lock.yaml`**: CI installs with `--frozen-lockfile`.
