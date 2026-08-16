@@ -1,8 +1,24 @@
 ---
-// Placeholder. This exists so the invariants have a page to run against on a
-// fresh clone — it is not the prototype. Replace the whole thing once the
-// explainer's one idea is decided; nothing here is worth keeping.
 import { route } from "../lib/url";
+import "../styles/global.css";
+
+const TOTAL = 168;
+
+const categories = [
+  { id: "sleep", label: "Sleep", icon: "\u{1F6CF}️", max: 84, step: 7, balanced: 56, allIn: 42 },
+  { id: "lectures", label: "Lectures & classes", icon: "\u{1F4DA}", max: 40, step: 1, balanced: 15, allIn: 25 },
+  { id: "study", label: "Study & assignments", icon: "\u{1F4DD}", max: 60, step: 1, balanced: 20, allIn: 40 },
+  { id: "work", label: "Paid work", icon: "\u{1F4BC}", max: 50, step: 1, balanced: 10, allIn: 20 },
+  { id: "exercise", label: "Exercise", icon: "\u{1F3C3}", max: 28, step: 1, balanced: 5, allIn: 7 },
+  { id: "social", label: "Socialising", icon: "\u{1F389}", max: 42, step: 1, balanced: 14, allIn: 21 },
+  { id: "commute", label: "Commute & errands", icon: "\u{1F68C}", max: 28, step: 1, balanced: 7, allIn: 10 },
+  { id: "selfcare", label: "Self-care & meals", icon: "\u{1F37D}️", max: 35, step: 1, balanced: 14, allIn: 14 },
+];
+
+const barColours = [
+  "#4361ee", "#e63946", "#2a9d8f", "#e9c46a",
+  "#7209b7", "#f77f00", "#3a86a0", "#8338ec",
+];
 ---
 
 <!doctype html>
@@ -10,17 +26,224 @@ import { route } from "../lib/url";
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Assignment 1 — interactive explainer</title>
+    <title>Spend Your Semester</title>
   </head>
   <body>
-    <nav aria-label="Main">
-      <a href={route("")}>Home</a>
+    <nav class="site-nav" aria-label="Main">
+      <div class="shell">
+        <a href={route("")}>Spend Your Semester</a>
+      </div>
     </nav>
+
     <main>
-      <h1>Nothing here yet</h1>
-      <p>
-        The explainer goes here: one idea, one mechanic, and nothing else.
-      </p>
+      <section class="hero">
+        <div class="shell">
+          <h1>Spend Your Semester</h1>
+          <p class="hero-sub">
+            A week has exactly {TOTAL} hours. You think you have more free time
+            than you do. Move the sliders and find out.
+          </p>
+        </div>
+      </section>
+
+      <section class="budget-section" aria-label="Budget tracker">
+        <div class="shell">
+          <div class="budget-header">
+            <span class="budget-label">Weekly budget</span>
+            <span class="budget-hours" data-testid="budget-used">0 / {TOTAL} hrs</span>
+          </div>
+          <div class="budget-track">
+            <div class="budget-fill" data-testid="budget-bar" style="width: 0%"></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="shell">
+        <div class="presets" role="group" aria-label="Presets">
+          <button class="preset-btn" data-preset="fresh" type="button">Start fresh</button>
+          <button class="preset-btn" data-preset="basics" type="button">The basics</button>
+          <button class="preset-btn" data-preset="balanced" type="button">Balanced week</button>
+          <button class="preset-btn" data-preset="allin" type="button">All-in</button>
+        </div>
+
+        <div class="categories">
+          {categories.map((cat, i) => (
+            <div class="category-card">
+              <div class="category-top">
+                <span class="category-name">
+                  <span class="category-icon" aria-hidden="true">{cat.icon}</span>{" "}
+                  {cat.label}
+                </span>
+                <span class="category-hours" data-hours-for={cat.id}>0 hrs</span>
+              </div>
+              <input
+                type="range"
+                class="category-slider"
+                min="0"
+                max={cat.max}
+                value="0"
+                step={cat.step}
+                data-testid={`slider-${cat.id}`}
+                data-category={cat.id}
+                data-colour={barColours[i]}
+                aria-label={cat.label}
+              />
+              <span class="category-detail" data-detail-for={cat.id}>&nbsp;</span>
+            </div>
+          ))}
+        </div>
+
+        <div class="status-msg status-under" data-testid="status-message">
+          You have {TOTAL} hours unallocated. Start sliding.
+        </div>
+
+        <section class="breakdown">
+          <h2>Where your week goes</h2>
+          <div class="breakdown-bars">
+            {categories.map((cat, i) => (
+              <div class="bar-row" data-bar-for={cat.id}>
+                <span class="bar-label">{cat.label}</span>
+                <div class="bar-track">
+                  <div class="bar-fill" style={`width: 0%; background: ${barColours[i]}`}></div>
+                </div>
+                <span class="bar-pct">0%</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section class="explainer">
+          <h2>Why this matters</h2>
+          <p>
+            Most students plan their semester around classes and deadlines. They
+            rarely sit down and account for all 168 hours in a week. When you
+            do, the arithmetic is unforgiving: eight hours of sleep a night
+            costs 56 hours, leaving 112 before you have done a single thing.
+          </p>
+          <p>
+            Add fifteen hours of classes, twenty hours of study, and basic
+            self-care, and you are already past 100. The hours that feel free
+            are what is left after everything else has taken its cut, and that
+            number is almost always smaller than people expect.
+          </p>
+          <p>
+            This is not a prescription. Some people thrive on six hours of
+            sleep; others need nine. The point is not to optimise your week
+            but to see it honestly. Once the numbers are in front of you,
+            the trade-offs become real: an extra shift at work is not free,
+            it comes out of something else. Knowing that before the semester
+            starts is worth more than discovering it in week eight.
+          </p>
+        </section>
+      </div>
     </main>
+
+    <footer class="site-footer">
+      <div class="shell">
+        An interactive explainer for COMP4020, ANU, 2026.
+      </div>
+    </footer>
+
+    <script define:vars={{ categories, TOTAL, barColours }}>
+      const sliders = document.querySelectorAll("[data-category]");
+      const budgetUsed = document.querySelector('[data-testid="budget-used"]');
+      const budgetFill = document.querySelector('[data-testid="budget-bar"]');
+      const statusMsg = document.querySelector('[data-testid="status-message"]');
+
+      const presets = {
+        fresh: Object.fromEntries(categories.map(c => [c.id, 0])),
+        basics: { sleep: 56, lectures: 15, study: 20, work: 0, exercise: 0, social: 0, commute: 0, selfcare: 0 },
+        balanced: Object.fromEntries(categories.map(c => [c.id, c.balanced])),
+        allin: Object.fromEntries(categories.map(c => [c.id, c.allIn])),
+      };
+
+      function detailText(id, value) {
+        const v = Number(value);
+        if (v === 0) return " ";
+        const perDay = (v / 7).toFixed(1);
+        switch (id) {
+          case "sleep": return `${perDay} hrs/night`;
+          case "lectures": return `${v} hrs of class/week`;
+          case "study": return `${v} hrs/week outside class`;
+          case "work": return `${v} hrs/week`;
+          case "exercise": return `${perDay} hrs/day`;
+          case "social": return `${perDay} hrs/day`;
+          case "commute": return `${perDay} hrs/day`;
+          case "selfcare": return `${perDay} hrs/day`;
+          default: return "";
+        }
+      }
+
+      function updateBudget() {
+        let total = 0;
+        sliders.forEach(slider => {
+          const id = slider.dataset.category;
+          const v = Number(slider.value);
+          total += v;
+
+          const hoursEl = document.querySelector(`[data-hours-for="${id}"]`);
+          if (hoursEl) hoursEl.textContent = `${v} hrs`;
+
+          const detailEl = document.querySelector(`[data-detail-for="${id}"]`);
+          if (detailEl) detailEl.textContent = detailText(id, v);
+
+          const barRow = document.querySelector(`[data-bar-for="${id}"]`);
+          if (barRow) {
+            const fill = barRow.querySelector(".bar-fill");
+            const pct = barRow.querySelector(".bar-pct");
+            const pctVal = Math.round((v / TOTAL) * 100);
+            if (fill) fill.style.width = `${pctVal}%`;
+            if (pct) pct.textContent = `${pctVal}%`;
+          }
+        });
+
+        const remaining = TOTAL - total;
+        const pct = Math.min((total / TOTAL) * 100, 100);
+        const over = total > TOTAL;
+
+        if (budgetUsed) {
+          budgetUsed.textContent = `${total} / ${TOTAL} hrs`;
+          budgetUsed.dataset.over = over.toString();
+        }
+        if (budgetFill) {
+          budgetFill.style.width = `${pct}%`;
+          budgetFill.dataset.over = over.toString();
+        }
+        if (statusMsg) {
+          statusMsg.className = "status-msg";
+          if (over) {
+            statusMsg.classList.add("status-over");
+            statusMsg.textContent = `You're ${Math.abs(remaining)} hours over budget. Something has to give.`;
+          } else if (remaining === 0) {
+            statusMsg.classList.add("status-exact");
+            statusMsg.textContent = `Every hour accounted for. No room to breathe.`;
+          } else {
+            statusMsg.classList.add("status-under");
+            statusMsg.textContent = `${remaining} hours unallocated — that's ${(remaining / 7).toFixed(1)} hrs/day of free time.`;
+          }
+        }
+      }
+
+      sliders.forEach(slider => {
+        slider.addEventListener("input", updateBudget);
+      });
+
+      document.querySelectorAll("[data-preset]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const name = btn.dataset.preset;
+          const values = presets[name];
+          if (!values) return;
+          sliders.forEach(slider => {
+            const id = slider.dataset.category;
+            if (id in values) {
+              slider.value = values[id];
+            }
+          });
+          updateBudget();
+        });
+      });
+
+      updateBudget();
+    </script>
   </body>
 </html>
