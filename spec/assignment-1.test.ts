@@ -4,6 +4,7 @@ import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
 import config from "../astro.config.mjs";
+import { PRESETS, TOTAL_HOURS, sync } from "../src/lib/budget";
 
 // Assignment 1's published spec, turned into backpressure.
 //
@@ -118,18 +119,73 @@ describe("spec: the visitor changes what they see", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("changes what is on screen when the core interaction runs", () => {
-    // REPLACE THIS. Name your interaction and assert its observable effect —
-    // the marker uses it for a minute, so it has to be the real one, e.g.:
-    //
-    //   it("moves the depth readout when the slider is dragged", ...)
-    //   it("reveals the next branch when a choice is picked", ...)
-    //
-    // Assert what the visitor SEES change, not which function ran. Prefer a
-    // stable hook you own (`[data-testid]`) over a class name you will restyle.
-    expect.fail(
-      "Describe the core interaction as a test. Until this line is replaced, " +
-        "the one thing the brief insists on is unasserted.",
+  // The core interaction is: move a slider, and the weekly budget readout,
+  // the bar and the verdict all move with it. These drive the real built page
+  // — a JSDOM of dist/index.html — through the same `sync` the browser calls,
+  // so they assert what the visitor sees rather than which function ran.
+  //
+  // A fresh JSDOM per test, because `sync` mutates it.
+  const rendered = () =>
+    new JSDOM(readFileSync(join(DIST, "index.html"), "utf8")).window.document;
+
+  it("moves the budget readout when hours are allocated", () => {
+    const doc = rendered();
+    const readout = doc.querySelector('[data-testid="budget-used"]');
+    expect(readout, "no budget readout in the built page").toBeTruthy();
+
+    const before = readout?.textContent?.trim();
+    expect(before, "an untouched week should start at zero").toContain("0 /");
+
+    sync(doc, { ...PRESETS.fresh, sleep: 56 });
+
+    expect(
+      readout?.textContent,
+      "56 hours of sleep left the budget readout unchanged — the visitor " +
+        "moved a slider and nothing happened.",
+    ).not.toBe(before);
+    expect(readout?.textContent).toContain(`56 / ${TOTAL_HOURS}`);
+  });
+
+  it("fills the budget bar in proportion to the hours spent", () => {
+    const doc = rendered();
+    const bar = doc.querySelector<HTMLElement>('[data-testid="budget-bar"]');
+    expect(bar, "no budget bar in the built page").toBeTruthy();
+    expect(bar?.style.width).toBe("0%");
+
+    sync(doc, { ...PRESETS.fresh, sleep: 84 });
+    expect(bar?.style.width).toBe("50%");
+  });
+
+  it("tells the visitor what is left, and then what is overspent", () => {
+    const doc = rendered();
+    const status = doc.querySelector('[data-testid="status-message"]');
+    expect(status, "no status message in the built page").toBeTruthy();
+
+    sync(doc, PRESETS.balanced);
+    expect(status?.textContent, "a balanced week should have hours left over")
+      .toContain("unallocated");
+
+    sync(doc, PRESETS.allin);
+    expect(
+      status?.textContent,
+      "the all-in week does not fit in 168 hours, and the page has to say so " +
+        "— that verdict is the whole argument.",
+    ).toContain("over budget");
+  });
+
+  it("keeps every slider's own readout in step with the budget", () => {
+    // The per-category numbers are the visitor's evidence for the total. If
+    // they drift apart the page is lying about its own arithmetic.
+    const doc = rendered();
+    sync(doc, PRESETS.balanced);
+
+    const shown = [...doc.querySelectorAll("[data-hours-for]")].map((el) =>
+      Number((el.textContent ?? "").replace(/\D/g, "")),
+    );
+    const total = shown.reduce((sum, hours) => sum + hours, 0);
+
+    expect(doc.querySelector('[data-testid="budget-used"]')?.textContent).toContain(
+      `${total} /`,
     );
   });
 });
