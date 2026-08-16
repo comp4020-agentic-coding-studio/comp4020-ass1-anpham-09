@@ -455,6 +455,53 @@ a {
   box-shadow: inset 0 0 0 2px var(--heat-over);
 }
 
+/* ------------------------------------------------------------------ debt */
+
+/*
+  The hours that don't fit, drawn outside the 168 rather than summarised under
+  it. The grid is a closed box with a border; these sit past its bottom edge on
+  bare paper, on the same column rhythm, so they read as a week that burst its
+  container instead of a number in a caption.
+
+  Hidden at zero rather than removed from the DOM: the container is what
+  `paintDebt` writes into, and a container that comes and goes is one the
+  repaint has to re-create in the right place every time it tips back over.
+*/
+.debt[data-count="0"] {
+  display: none;
+}
+
+.debt {
+  padding: 0.9rem 0.75rem 0;
+}
+
+.debt-label {
+  margin: 0 0 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--heat-over);
+}
+
+.debt-cells {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 2px;
+}
+
+@media (width >= 40rem) {
+  .debt-cells {
+    grid-template-columns: repeat(24, 1fr);
+  }
+}
+
+/* Ringed, so a spilled hour is legibly not one of the 168 even at a glance,
+   and still the colour of the category that spilled it. */
+.debt-cell {
+  box-shadow: 0 0 0 1px var(--heat-over);
+}
+
 .grid-caption {
   margin: 0.6rem 0 0;
   font-weight: 600;

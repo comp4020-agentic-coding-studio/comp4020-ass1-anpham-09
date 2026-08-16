@@ -24,7 +24,17 @@ export const FREE: Cell = "free";
 export interface Week {
   /** Exactly 168 cells, in reading order: row = hour, column = day. */
   cells: Cell[];
-  /** Hours that did not fit. Zero unless the week is oversubscribed. */
+  /**
+   * The hours that did not fit, each still carrying the category that spilled
+   * it. Empty unless the week is oversubscribed.
+   *
+   * This used to be a count. A count can be written into a caption but it
+   * cannot be drawn, and the moment the page is really built for is the one
+   * where the debt stops being a number and becomes cells sitting outside the
+   * 168 with nowhere to go.
+   */
+  debt: Cell[];
+  /** `debt.length`, kept because the caption and the grid's data attribute read it. */
   overflow: number;
 }
 
@@ -45,19 +55,36 @@ export function weekFor(allocations: Allocations): Week {
   );
 
   const cells: Cell[] = [];
-  let overflow = 0;
+  const debt: Cell[] = [];
 
   for (const { id } of ordered) {
     const hours = Math.max(0, Math.round(allocations[id] ?? 0));
     for (let i = 0; i < hours; i++) {
       if (cells.length < TOTAL_HOURS) cells.push(id);
-      else overflow++;
+      else debt.push(id);
     }
   }
 
   while (cells.length < TOTAL_HOURS) cells.push(FREE);
 
-  return { cells, overflow };
+  return { cells, debt, overflow: debt.length };
+}
+
+/**
+ * The line under the grid.
+ *
+ * It lived as a ternary in two places — `index.astro`'s frontmatter and
+ * `render.ts` — which is exactly the shape the "every rendered number comes
+ * from one pure function" rule exists to prevent. It also used to say
+ * "N hours don't fit in the week at all", which the debt block above it now
+ * says better and in red; a caption repeating the thing it sits under is a
+ * caption doing nothing.
+ */
+export function captionFor(week: Week): string {
+  if (week.overflow > 0) return "Every one of the 168 is already spoken for.";
+
+  const free = week.cells.filter((c) => c === FREE).length;
+  return `${free} hours still free.`;
 }
 
 /** How many cells each category ended up owning, for the legend. */

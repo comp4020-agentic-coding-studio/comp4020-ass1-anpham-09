@@ -20,7 +20,7 @@ import {
   summarise,
 } from "./budget";
 import { type Insight, insightsFor, revealGuess } from "./insights";
-import { type Week, weekFor } from "./grid";
+import { type Week, captionFor, weekFor } from "./grid";
 
 function docOf(root: ParentNode): Document {
   return "createElement" in root
@@ -76,13 +76,37 @@ function paintGrid(root: ParentNode, week: Week): void {
 
   grid.dataset.overflow = String(week.overflow);
 
-  text(
-    root,
-    '[data-testid="grid-caption"]',
-    week.overflow > 0
-      ? `${week.overflow} hours don't fit in the week at all.`
-      : `${week.cells.filter((c) => c === "free").length} hours still free.`,
-  );
+  text(root, '[data-testid="grid-caption"]', captionFor(week));
+
+  paintDebt(root, week);
+}
+
+/**
+ * The spilled hours, as cells outside the 168.
+ *
+ * Rebuilt rather than diffed because the count swings by dozens on a single
+ * drag, and a wrong-length list of coloured squares is a lie about the week.
+ * The container itself is never removed — `data-count` is what the CSS reads
+ * to show or hide it, so there is nothing to re-create when the week tips back
+ * under 168 and nothing to mis-place when it tips over again.
+ */
+function paintDebt(root: ParentNode, week: Week): void {
+  const wrap = root.querySelector<HTMLElement>('[data-testid="debt"]');
+  const cells = root.querySelector('[data-testid="debt-cells"]');
+  if (!wrap || !cells) return;
+
+  wrap.dataset.count = String(week.overflow);
+  text(root, '[data-testid="debt-count"]', String(week.overflow));
+
+  const d = docOf(root);
+  cells.textContent = "";
+
+  for (const cell of week.debt) {
+    const span = d.createElement("span");
+    span.className = "hour-cell debt-cell";
+    span.setAttribute("data-hour-cell", cell);
+    cells.append(span);
+  }
 }
 
 function paintInsights(root: ParentNode, insights: Insight[]): void {

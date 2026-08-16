@@ -53,3 +53,42 @@ describe("weekFor", () => {
     expect(cellCounts(week)[FREE]).toBe(TOTAL_HOURS - 10);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The hours that don't fit are the whole point of the page, and until now the
+// grid knew only how *many* there were. A count can be written in a caption;
+// it can't be drawn. Keeping the spilled cells — with the category that spilled
+// them — is what lets the debt break out of the 168 visually, which is the one
+// moment the argument stops being arithmetic and becomes a picture.
+// ---------------------------------------------------------------------------
+describe("hours that don't fit", () => {
+  it("keeps the spilled hours, not just a tally of them", () => {
+    const week = weekFor(PRESETS.allin); // 179 hours
+    expect(week.debt).toHaveLength(11);
+    expect(week.debt.length).toBe(week.overflow);
+  });
+
+  it("still renders exactly 168 cells no matter how far over the week goes", () => {
+    const week = weekFor(preset({ sleep: 84, study: 60, work: 50, social: 42 }));
+    expect(week.cells).toHaveLength(TOTAL_HOURS);
+    expect(week.debt).toHaveLength(236 - TOTAL_HOURS);
+  });
+
+  it("spills the discretionary hours, because those are filled last", () => {
+    // Not an implementation detail: the grid fills essentials first so that
+    // what overflows is what you chose, and the page can say so.
+    //
+    // 84 + 40 + 40 = 164 committed, so only 4 of the 42 social hours fit and
+    // the other 38 are the debt. My first fixture put study at 60 and had the
+    // commitments overflowing too — which is also true of a real week, but it
+    // isn't what this test is about.
+    const week = weekFor(preset({ sleep: 84, lectures: 40, study: 40, social: 42 }));
+    expect(new Set(week.debt)).toEqual(new Set(["social"]));
+    expect(week.debt).toHaveLength(38);
+  });
+
+  it("has nothing to spill when the week fits", () => {
+    expect(weekFor(PRESETS.balanced).debt).toEqual([]);
+    expect(weekFor(PRESETS.fresh).debt).toEqual([]);
+  });
+});

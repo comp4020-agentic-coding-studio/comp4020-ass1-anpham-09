@@ -8,7 +8,7 @@ import {
   summarise,
 } from "../lib/budget";
 import { insightsFor } from "../lib/insights";
-import { weekFor } from "../lib/grid";
+import { captionFor, weekFor } from "../lib/grid";
 import { SCENARIOS } from "../lib/scenarios";
 import "../styles/global.css";
 
@@ -24,7 +24,6 @@ const status = statusFor(summary, allocation);
 
 const heat =
   summary.pct > 90 ? "tight" : summary.pct > 70 ? "warm" : "easy";
-const freeCells = week.cells.filter((c) => c === "free").length;
 ---
 
 <!doctype html>
@@ -147,13 +146,23 @@ const freeCells = week.cells.filter((c) => c === "free").length;
           >
             {week.cells.map((cell) => <span class="hour-cell" data-hour-cell={cell} />)}
           </div>
-          <p class="grid-caption" data-testid="grid-caption">
-            {
-              week.overflow > 0
-                ? `${week.overflow} hours don't fit in the week at all.`
-                : `${freeCells} hours still free.`
-            }
-          </p>
+
+          {/*
+            The hours that didn't fit, drawn outside the 168 rather than
+            summarised under it. Empty in the served HTML for a week that fits,
+            and `render.ts` fills it on every repaint — so the container is
+            always here and only its contents move.
+          */}
+          <div class="debt" data-testid="debt" data-count={String(week.overflow)}>
+            <p class="debt-label">
+              <span class="debt-count" data-testid="debt-count">{week.overflow}</span>
+              {" "}hours with nowhere to go
+            </p>
+            <div class="debt-cells" data-testid="debt-cells" aria-hidden="true">
+              {week.debt.map((cell) => <span class="hour-cell debt-cell" data-hour-cell={cell} />)}
+            </div>
+          </div>
+          <p class="grid-caption" data-testid="grid-caption">{captionFor(week)}</p>
           <ul class="legend">
             {
               CATEGORIES.map((cat) => (
