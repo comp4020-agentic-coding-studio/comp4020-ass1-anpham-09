@@ -21,15 +21,18 @@
   /* an unspent hour */
   --free-cell: #ded9cd;
 
-  /* one per category, and the legend reads from the same tokens */
+  /* One per category, and the legend reads from the same tokens. Every pair
+     here clears an OKLab dE of 0.12; `spec/palette.test.ts` holds that floor,
+     because a grid of 168 cells is only an argument if you can tell the
+     cells apart. Change one of these and run the check before believing it. */
   --cat-sleep: #4361ee;
   --cat-lectures: #e63946;
   --cat-study: #2a9d8f;
-  --cat-work: #e9c46a;
+  --cat-work: #d4bb2e;
   --cat-exercise: #7209b7;
-  --cat-social: #f77f00;
-  --cat-commute: #3a86a0;
-  --cat-selfcare: #8338ec;
+  --cat-social: #f98424;
+  --cat-commute: #2f5d7c;
+  --cat-selfcare: #9c6644;
 
   /* the budget bar's temperature, green through amber to red */
   --heat-easy: #2a9d8f;
@@ -59,15 +62,17 @@
     /* an unspent hour */
     --free-cell: #35342c;
 
-    /* lifted and desaturated: the light palette is unreadable on dark */
-    --cat-sleep: #7f92f5;
+    /* Lifted: the light palette is unreadable on dark. Held to the same 0.12
+       floor, and separately — lifting eight colours by eye collapsed pairs
+       that were fine in light. */
+    --cat-sleep: #7b7cf7;
     --cat-lectures: #ff6b76;
     --cat-study: #4fc4b5;
-    --cat-work: #f0d38b;
-    --cat-exercise: #b07ae8;
-    --cat-social: #ffa23d;
-    --cat-commute: #6fb3c9;
-    --cat-selfcare: #e58fd0;
+    --cat-work: #f0d987;
+    --cat-exercise: #cf74d8;
+    --cat-social: #fb9a2e;
+    --cat-commute: #4d8fb0;
+    --cat-selfcare: #a9764e;
 
     /* the budget bar's temperature */
     --heat-easy: #4fc4b5;
@@ -416,9 +421,16 @@ a {
 }
 
 .legend-swatch {
-  width: 0.8rem;
-  height: 0.8rem;
-  border-radius: 2px;
+  /* Big enough to actually judge a hue against the grid. At 0.8rem two
+     neighbouring purples were indistinguishable and the key stopped keying. */
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 3px;
+  flex: none;
+}
+
+.category-icon {
+  margin-inline-end: 0.35rem;
 }
 
 /* ------------------------------------------------------------- verdict */
