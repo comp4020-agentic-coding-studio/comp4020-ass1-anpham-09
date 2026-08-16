@@ -1,7 +1,30 @@
 ---
-import { route } from "../lib/url";
-import { CATEGORIES, TOTAL_HOURS } from "../lib/budget";
+import {
+  CATEGORIES,
+  DEFAULT_ALLOCATION,
+  TOTAL_HOURS,
+  detailText,
+  statusFor,
+  summarise,
+} from "../lib/budget";
+import { insightsFor } from "../lib/insights";
+import { weekFor } from "../lib/grid";
+import { SCENARIOS } from "../lib/scenarios";
 import "../styles/global.css";
+
+// The page arrives already argued. Everything below is computed here, at build
+// time, from the same functions the browser will call — so a visitor whose
+// JavaScript never loads still reads a complete argument, and the first client
+// repaint cannot disagree with the served HTML.
+const allocation = DEFAULT_ALLOCATION;
+const summary = summarise(allocation);
+const week = weekFor(allocation);
+const insights = insightsFor(allocation);
+const status = statusFor(summary, allocation);
+
+const heat =
+  summary.pct > 90 ? "tight" : summary.pct > 70 ? "warm" : "easy";
+const freeCells = week.cells.filter((c) => c === "free").length;
 ---
 
 <!doctype html>
@@ -9,106 +32,236 @@ import "../styles/global.css";
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Spend Your Semester</title>
+    <title>Spend Your Semester — you have fewer free hours than you think</title>
     <meta
       name="description"
       content="A week has exactly 168 hours. Allocate them across sleep, study, work and everything else, and watch how little is left."
     />
   </head>
-  <body>
-    <nav class="site-nav" aria-label="Main">
-      <div class="shell">
-        <a href={route("")}>Spend Your Semester</a>
-      </div>
-    </nav>
-
+  <body data-page data-crunch={String(summary.over)}>
     <main>
-      <section class="hero">
+      <header class="hero">
         <div class="shell">
           <h1>Spend Your Semester</h1>
           <p class="hero-sub">
-            A week has exactly {TOTAL_HOURS} hours. You think you have more free
-            time than you do. Move the sliders and find out.
+            A week has exactly {TOTAL_HOURS} hours. Not 170 in a good week, not
+            160 in a bad one. Below is a modest, unambitious week — nothing
+            indulgent in it. Watch what it leaves you.
           </p>
-        </div>
-      </section>
 
-      <section class="budget-section" aria-label="Budget tracker">
+          <form class="guess" data-testid="guess-form">
+            <label class="guess-label" for="guess">
+              Before you scroll: how many <strong>free</strong> hours do you think
+              you have in a week?
+            </label>
+            <div class="guess-row">
+              <input
+                id="guess"
+                name="guess"
+                class="guess-input"
+                data-testid="guess-input"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                max={TOTAL_HOURS}
+                step="1"
+                placeholder="e.g. 40"
+              />
+              <button class="guess-btn" type="submit">Lock it in</button>
+            </div>
+            <p
+              class="guess-reveal"
+              data-testid="guess-reveal"
+              role="status"
+              aria-live="polite"
+              hidden
+            >
+            </p>
+          </form>
+        </div>
+      </header>
+
+      <div class="budget-bar-wrap">
         <div class="shell">
           <div class="budget-header">
             <span class="budget-label">Weekly budget</span>
-            <span class="budget-hours" data-testid="budget-used">
-              0 / {TOTAL_HOURS} hrs
+            <span class="budget-hours" data-testid="budget-used" data-over={String(summary.over)}>
+              {summary.total} / {TOTAL_HOURS} hrs
             </span>
           </div>
           <div class="budget-track">
-            <div class="budget-fill" data-testid="budget-bar" style="width: 0%">
+            <div
+              class="budget-fill"
+              data-testid="budget-bar"
+              data-over={String(summary.over)}
+              data-heat={heat}
+              style={`width: ${summary.pct}%`}
+            >
             </div>
           </div>
+          <p class="thesis" data-testid="thesis">
+            You have fewer free hours than you think.
+          </p>
         </div>
-      </section>
+      </div>
 
       <div class="shell">
-        <div class="presets" role="group" aria-label="Presets">
-          <button class="preset-btn" data-preset="fresh" type="button">
-            Start fresh
-          </button>
-          <button class="preset-btn" data-preset="basics" type="button">
-            The basics
-          </button>
-          <button class="preset-btn" data-preset="balanced" type="button">
-            Balanced week
-          </button>
-          <button class="preset-btn" data-preset="allin" type="button">
-            All-in
-          </button>
-        </div>
+        <noscript>
+          <p class="noscript-note">
+            The sliders need JavaScript, which isn't running. The week below is
+            a real, fairly modest allocation, and the arithmetic underneath it
+            doesn't change: {summary.total} hours committed, {summary.remaining}{" "}
+            left.
+          </p>
+        </noscript>
 
-        <div class="categories">
-          {
-            CATEGORIES.map((cat) => (
-              <div class="category-card">
-                <div class="category-top">
-                  <span class="category-name">
-                    <span class="category-icon" aria-hidden="true">
-                      {cat.icon}
-                    </span>{" "}
-                    {cat.label}
-                  </span>
-                  <span class="category-hours" data-hours-for={cat.id}>
-                    0 hrs
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  class="category-slider"
-                  min="0"
-                  max={cat.max}
-                  value="0"
-                  step={cat.step}
-                  data-testid={`slider-${cat.id}`}
-                  data-category={cat.id}
-                  aria-label={`${cat.label}, hours per week`}
-                />
-                <span class="category-detail" data-detail-for={cat.id}>
-                  &nbsp;
-                </span>
-              </div>
-            ))
-          }
-        </div>
+        {/*
+          One page, so this navigates within it. It is not decoration: the page
+          is four screens tall on a phone and the controls are the part people
+          come back to. It is also the document's navigation landmark, which a
+          screen reader user jumps to before they read anything.
+        */}
+        <nav class="page-nav" aria-label="Sections of this page">
+          <ul>
+            <li><a href="#week-heading">Your week</a></li>
+            <li><a href="#controls-heading">Change it</a></li>
+            <li><a href="#breakdown-heading">Where it goes</a></li>
+            <li><a href="#conclusion-heading">So what</a></li>
+          </ul>
+        </nav>
+
+        <section class="week-section" aria-labelledby="week-heading">
+          <h2 id="week-heading">Your week, one cell per hour</h2>
+          <div
+            class="week-grid"
+            data-testid="week-grid"
+            data-overflow={String(week.overflow)}
+            aria-hidden="true"
+          >
+            {week.cells.map((cell) => <span class="hour-cell" data-hour-cell={cell} />)}
+          </div>
+          <p class="grid-caption" data-testid="grid-caption">
+            {
+              week.overflow > 0
+                ? `${week.overflow} hours don't fit in the week at all.`
+                : `${freeCells} hours still free.`
+            }
+          </p>
+          <ul class="legend">
+            {
+              CATEGORIES.map((cat) => (
+                <li class="legend-item">
+                  <span class="legend-swatch" data-hour-cell={cat.id} />
+                  {cat.label}
+                </li>
+              ))
+            }
+            <li class="legend-item">
+              <span class="legend-swatch" data-hour-cell="free" />
+              Free
+            </li>
+          </ul>
+        </section>
 
         <div
-          class="status-msg status-under"
+          class="status-msg"
           data-testid="status-message"
           role="status"
           aria-live="polite"
         >
-          You have {TOTAL_HOURS} hours unallocated. Start sliding.
+          {status.text}
         </div>
 
-        <section class="breakdown">
-          <h2>Where your week goes</h2>
+        <section class="insights-section" aria-labelledby="insights-heading">
+          <h2 id="insights-heading" class="sr-only">What this says about your week</h2>
+          <ul
+            class="insights"
+            data-testid="insights"
+            aria-live="polite"
+          >
+            {
+              insights.map((insight) => (
+                <li class="insight" data-insight={insight.id} data-tone={insight.tone}>
+                  {insight.text}
+                </li>
+              ))
+            }
+          </ul>
+        </section>
+
+        <section class="controls" aria-labelledby="controls-heading">
+          <h2 id="controls-heading">Change the week</h2>
+
+          <div class="presets" role="group" aria-label="Starting points">
+            <button class="preset-btn" data-preset="fresh" type="button">Empty week</button>
+            <button class="preset-btn" data-preset="basics" type="button">Bare essentials</button>
+            <button class="preset-btn" data-preset="balanced" type="button">Balanced week</button>
+            <button class="preset-btn" data-preset="allin" type="button">All-in</button>
+          </div>
+
+          <div class="scenarios" role="group" aria-label="What if">
+            {
+              SCENARIOS.map((scenario) => (
+                <button
+                  class="scenario-btn"
+                  type="button"
+                  data-scenario={scenario.id}
+                  aria-pressed="false"
+                >
+                  <span class="scenario-label">{scenario.label}</span>
+                  <span class="scenario-blurb">{scenario.blurb}</span>
+                </button>
+              ))
+            }
+          </div>
+          <p class="scenarios-note">
+            Each one is survivable on its own. Turn on two and watch.
+          </p>
+
+          <div class="categories">
+            {
+              CATEGORIES.map((cat) => (
+                <div class="category-card">
+                  <div class="category-top">
+                    <span class="category-name">
+                      <span class="category-icon" aria-hidden="true">
+                        {cat.icon}
+                      </span>{" "}
+                      {cat.label}
+                    </span>
+                    <span class="category-hours" data-hours-for={cat.id}>
+                      {allocation[cat.id]} hrs
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    class="category-slider"
+                    min="0"
+                    max={cat.max}
+                    value={allocation[cat.id]}
+                    step={cat.step}
+                    data-testid={`slider-${cat.id}`}
+                    data-category={cat.id}
+                    aria-label={`${cat.label}, hours per week`}
+                  />
+                  <span class="category-detail" data-detail-for={cat.id}>
+                    {detailText(cat.id, allocation[cat.id])}
+                  </span>
+                </div>
+              ))
+            }
+          </div>
+
+          <div class="share-row">
+            <button class="share-btn" type="button" data-testid="share-btn">
+              Copy a link to this week
+            </button>
+            <span class="share-note" data-testid="share-note" role="status" aria-live="polite"></span>
+          </div>
+        </section>
+
+        <section class="breakdown" aria-labelledby="breakdown-heading">
+          <h2 id="breakdown-heading">Where your week goes</h2>
           <div class="breakdown-bars">
             {
               CATEGORIES.map((cat) => (
@@ -117,38 +270,53 @@ import "../styles/global.css";
                   <div class="bar-track">
                     <div
                       class="bar-fill"
-                      style={`width: 0%; background: ${cat.colour}`}
+                      data-hour-cell={cat.id}
+                      style={`width: ${Math.round((allocation[cat.id] / TOTAL_HOURS) * 100)}%`}
                     />
+                    {
+                      cat.anchor && (
+                        <span
+                          class="bar-anchor"
+                          data-anchor-for={cat.id}
+                          style={`left: ${(cat.anchor.hours / TOTAL_HOURS) * 100}%`}
+                          title={cat.anchor.label}
+                        />
+                      )
+                    }
                   </div>
-                  <span class="bar-pct">0%</span>
+                  <span class="bar-pct">
+                    {Math.round((allocation[cat.id] / TOTAL_HOURS) * 100)}%
+                  </span>
                 </div>
               ))
             }
           </div>
+          <p class="anchor-source" data-testid="anchor-source">
+            The marker on the sleep bar is the national average, about 8.5 hours
+            a night, from the{" "}
+            <a
+              href="https://www.abs.gov.au/statistics/people/people-and-communities/how-australians-use-their-time/latest-release"
+              rel="noopener noreferrer"
+              target="_blank">ABS Time Use Survey</a
+            >. It's the only borrowed figure here: the survey's other headline
+            numbers are averages among people who did the activity at all, so
+            they don't map onto a whole week's budget and aren't shown.
+          </p>
         </section>
 
-        <section class="explainer">
-          <h2>Why this matters</h2>
-          <p>
-            Most students plan their semester around classes and deadlines. They
-            rarely sit down and account for all {TOTAL_HOURS} hours in a week.
-            When you do, the arithmetic is unforgiving: eight hours of sleep a
-            night costs 56 hours, leaving 112 before you have done a single
-            thing.
+        <section class="conclusion" aria-labelledby="conclusion-heading">
+          <h2 id="conclusion-heading">So what</h2>
+          <p data-testid="conclusion">
+            You don't have a time management problem. You have a time arithmetic
+            problem. The week above has no emergencies in it, no bad days, no
+            commitments you took on to be kind — and it is already tight. The
+            semester hasn't started yet.
           </p>
           <p>
-            Add fifteen hours of classes, twenty hours of study, and basic
-            self-care, and you are already past 100. The hours that feel free
-            are what is left after everything else has taken its cut, and that
-            number is almost always smaller than people expect.
-          </p>
-          <p>
-            This is not a prescription. Some people thrive on six hours of
-            sleep; others need nine. The point is not to optimise your week but
-            to see it honestly. Once the numbers are in front of you, the
-            trade-offs become real: an extra shift at work is not free, it comes
-            out of something else. Knowing that before the semester starts is
-            worth more than discovering it in week eight.
+            Which is why "I'll find the time" is the sentence that does the
+            damage. There is no finding. There is only taking, and the hours
+            come out of sleep, or out of the people you like, because those are
+            the only categories that don't send reminders.
           </p>
         </section>
       </div>
@@ -159,46 +327,128 @@ import "../styles/global.css";
     </footer>
 
     <script>
-      import { PRESETS, sync, type Allocations } from "../lib/budget";
+      import {
+        CATEGORIES,
+        DEFAULT_ALLOCATION,
+        type Allocations,
+        summarise,
+      } from "../lib/budget";
+      import { PRESETS } from "../lib/budget";
+      import { render } from "../lib/render";
+      import { applyScenarios, unapplyScenario } from "../lib/scenarios";
+      import { decodeState, encodeState } from "../lib/share";
 
-      // This block is deliberately thin: read the sliders, hand them to
-      // `sync`, and wire the buttons. Everything worth testing lives in
-      // src/lib/budget.ts, where the typechecker and the spec can both see it.
+      // Thin adapter: read the DOM, call the modules, write the result back.
+      // Nothing here decides anything — see src/lib/ for everything that does.
       const sliders = [
         ...document.querySelectorAll<HTMLInputElement>("[data-category]"),
       ];
 
-      const read = (): Allocations =>
-        Object.fromEntries(
-          sliders.map((slider) => [
-            slider.dataset.category ?? "",
-            Number(slider.value),
-          ]),
-        );
+      const restored = decodeState(location.hash);
 
-      const render = () => sync(document, read());
+      let allocations: Allocations = restored.allocations ?? { ...DEFAULT_ALLOCATION };
+      let active: string[] = restored.scenarios ?? [];
+      let guess: number | null = restored.guess ?? null;
 
-      for (const slider of sliders) {
-        slider.addEventListener("input", render);
+      // A restored hash carries the week *with* its scenarios already in it,
+      // so re-applying them would double the deltas.
+      if (restored.allocations === undefined && active.length) {
+        allocations = applyScenarios(allocations, active);
       }
 
-      for (const button of document.querySelectorAll<HTMLButtonElement>(
-        "[data-preset]",
-      )) {
-        button.addEventListener("click", () => {
-          const values = PRESETS[button.dataset.preset ?? ""];
-          if (!values) return;
-          for (const slider of sliders) {
-            const id = slider.dataset.category ?? "";
-            if (id in values) slider.value = String(values[id]);
-          }
-          render();
+      const writeSliders = () => {
+        for (const slider of sliders) {
+          const id = slider.dataset.category ?? "";
+          if (id in allocations) slider.value = String(allocations[id]);
+        }
+      };
+
+      const writeHash = () => {
+        const hash = encodeState({ allocations, guess: guess ?? undefined, scenarios: active });
+        history.replaceState(null, "", `#${hash}`);
+      };
+
+      const paint = (persist = true) => {
+        render(document, { allocations, active, guess });
+        if (persist) writeHash();
+      };
+
+      for (const slider of sliders) {
+        slider.addEventListener("input", () => {
+          allocations = {
+            ...allocations,
+            [slider.dataset.category ?? ""]: Number(slider.value),
+          };
+          paint();
         });
       }
 
-      // The markup ships as an empty week; this paints whatever the browser
-      // restored on a back-navigation or reload.
-      render();
+      for (const button of document.querySelectorAll<HTMLButtonElement>("[data-preset]")) {
+        button.addEventListener("click", () => {
+          const values = PRESETS[button.dataset.preset ?? ""];
+          if (!values) return;
+          allocations = { ...values };
+          active = [];
+          writeSliders();
+          paint();
+        });
+      }
+
+      for (const button of document.querySelectorAll<HTMLButtonElement>("[data-scenario]")) {
+        button.addEventListener("click", () => {
+          const id = button.dataset.scenario ?? "";
+          if (active.includes(id)) {
+            active = active.filter((s) => s !== id);
+            allocations = unapplyScenario(allocations, id);
+          } else {
+            active = [...active, id];
+            allocations = applyScenarios(allocations, [id]);
+          }
+          writeSliders();
+          paint();
+        });
+      }
+
+      const form = document.querySelector<HTMLFormElement>('[data-testid="guess-form"]');
+      const guessInput = document.querySelector<HTMLInputElement>('[data-testid="guess-input"]');
+      form?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const value = Number(guessInput?.value);
+        if (!Number.isFinite(value) || guessInput?.value === "") return;
+        guess = value;
+        paint();
+      });
+
+      const shareBtn = document.querySelector<HTMLButtonElement>('[data-testid="share-btn"]');
+      const shareNote = document.querySelector('[data-testid="share-note"]');
+      shareBtn?.addEventListener("click", async () => {
+        writeHash();
+        try {
+          await navigator.clipboard.writeText(location.href);
+          if (shareNote) shareNote.textContent = "Link copied.";
+        } catch {
+          // Clipboard access is refused in plenty of ordinary situations
+          // (insecure origin, permissions policy). The URL bar already holds
+          // the state, so say that rather than failing silently.
+          if (shareNote) shareNote.textContent = "Copy the URL — it holds your week.";
+        }
+      });
+
+      // The markup already shows DEFAULT_ALLOCATION. This first paint only
+      // matters when a hash restored something else; passing false keeps a
+      // plain visit from rewriting the URL before anyone has touched anything.
+      writeSliders();
+      paint(Object.keys(restored).length > 0);
+
+      // Prove the two agree. If frontmatter and the client ever computed
+      // different totals this is where it would surface, in dev only.
+      if (import.meta.env.DEV) {
+        const shown = document.querySelector('[data-testid="budget-used"]')?.textContent ?? "";
+        const expected = `${summarise(allocations).total} / `;
+        if (!shown.includes(expected)) {
+          console.warn(`[budget] server/client mismatch: ${shown} vs ${expected}`, CATEGORIES.length);
+        }
+      }
     </script>
   </body>
 </html>

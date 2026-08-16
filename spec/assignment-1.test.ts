@@ -4,7 +4,12 @@ import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
 import config from "../astro.config.mjs";
-import { PRESETS, TOTAL_HOURS, sync } from "../src/lib/budget";
+import { PRESETS, TOTAL_HOURS } from "../src/lib/budget";
+import { render } from "../src/lib/render";
+
+/** The page always draws a whole state; these tests only vary the week. */
+const sync = (root: ParentNode, allocations: Record<string, number>) =>
+  render(root, { allocations, active: [], guess: null }).summary;
 
 // Assignment 1's published spec, turned into backpressure.
 //
@@ -133,8 +138,9 @@ describe("spec: the visitor changes what they see", () => {
     const readout = doc.querySelector('[data-testid="budget-used"]');
     expect(readout, "no budget readout in the built page").toBeTruthy();
 
+    // The served page opens on an allocated week, not an empty one, so the
+    // "before" here is whatever the build rendered.
     const before = readout?.textContent?.trim();
-    expect(before, "an untouched week should start at zero").toContain("0 /");
 
     sync(doc, { ...PRESETS.fresh, sleep: 56 });
 
@@ -150,7 +156,6 @@ describe("spec: the visitor changes what they see", () => {
     const doc = rendered();
     const bar = doc.querySelector<HTMLElement>('[data-testid="budget-bar"]');
     expect(bar, "no budget bar in the built page").toBeTruthy();
-    expect(bar?.style.width).toBe("0%");
 
     sync(doc, { ...PRESETS.fresh, sleep: 84 });
     expect(bar?.style.width).toBe("50%");
@@ -187,6 +192,30 @@ describe("spec: the visitor changes what they see", () => {
     expect(doc.querySelector('[data-testid="budget-used"]')?.textContent).toContain(
       `${total} /`,
     );
+  });
+
+  // Regression. `paintGrid` used to query the whole document for
+  // `[data-hour-cell]`, which also matches the nine legend swatches — they
+  // carry the attribute so they take their colour from the same CSS rules. So
+  // every repaint overwrote the legend with the first nine hours of the week,
+  // and the key to the grid silently stopped being a key to anything.
+  it("leaves the legend alone when the week is repainted", () => {
+    const doc = rendered();
+    const key = () =>
+      [...doc.querySelectorAll(".legend-swatch")].map((el) =>
+        el.getAttribute("data-hour-cell"),
+      );
+
+    const before = key();
+    expect(before.length, "no legend in the built page").toBeGreaterThan(0);
+
+    sync(doc, PRESETS.allin);
+
+    expect(
+      key(),
+      "The legend swatches changed colour when the week did. They name the " +
+        "categories; they are not part of the week.",
+    ).toEqual(before);
   });
 });
 

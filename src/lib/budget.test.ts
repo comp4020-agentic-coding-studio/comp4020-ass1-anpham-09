@@ -5,6 +5,7 @@ import {
   PRESETS,
   TOTAL_HOURS,
   type Allocations,
+  dailyMinutes,
   detailText,
   statusFor,
   summarise,
@@ -121,22 +122,70 @@ describe("detailText", () => {
   });
 });
 
+/** statusFor reads the raw allocations too, so always hand it both. */
+const verdict = (hours: Record<string, number>) => {
+  const allocations = allocate(hours);
+  return statusFor(summarise(allocations), allocations);
+};
+
 describe("statusFor", () => {
   it("reports the shortfall when the week is oversubscribed", () => {
-    const status = statusFor(summarise(allocate({ sleep: 84, study: 60, work: 40 })));
+    const status = verdict({ sleep: 84, study: 60, work: 40 });
     expect(status.modifier).toBe("status-over");
     expect(status.text).toContain("16 hours over budget");
   });
 
   it("has its own message for a week that lands exactly on 168", () => {
-    const status = statusFor(summarise(allocate({ sleep: 84, study: 60, work: 24 })));
-    expect(status.modifier).toBe("status-exact");
+    expect(verdict({ sleep: 84, study: 60, work: 24 }).modifier).toBe("status-exact");
   });
 
   it("reports free time per day while there are hours left", () => {
-    const status = statusFor(summarise(allocate({ sleep: 56 })));
+    const status = verdict({ sleep: 56 });
     expect(status.modifier).toBe("status-under");
     expect(status.text).toContain("112 hours unallocated");
     expect(status.text).toContain("16.0 hrs/day");
+  });
+
+  // The edge cases are where the page's voice either holds or turns back into
+  // a calculator, so they get assertions like anything else.
+  it("has something to say about an empty week", () => {
+    const status = verdict({});
+    expect(status.modifier).toBe("status-void");
+    expect(status.text).toContain("void");
+  });
+
+  it("calls out a week with no sleep in it at all", () => {
+    const status = verdict({ study: 60, work: 40 });
+    expect(status.text).toContain("three days");
+  });
+
+  it("prefers the empty-week line over the no-sleep one", () => {
+    // Both are true of an empty week. Being told off for skipping sleep when
+    // you have not entered anything yet would be nonsense.
+    expect(verdict({}).modifier).toBe("status-void");
+  });
+});
+
+describe("groups", () => {
+  it("counts hours claimed before the visitor chooses anything", () => {
+    const summary = summarise(PRESETS.balanced);
+    // sleep 56 + selfcare 14 + lectures 15 + study 20 + work 10 + commute 7
+    expect(summary.committed).toBe(122);
+    expect(summary.discretionary).toBe(19); // exercise 5 + social 14
+  });
+
+  it("splits every category into exactly one group", () => {
+    const summary = summarise(PRESETS.balanced);
+    expect(summary.committed + summary.discretionary).toBe(summary.total);
+  });
+});
+
+describe("dailyMinutes", () => {
+  it("restates one weekly hour as the daily minutes it costs", () => {
+    expect(dailyMinutes(1)).toBe(9);
+  });
+
+  it("scales", () => {
+    expect(dailyMinutes(7)).toBe(60);
   });
 });

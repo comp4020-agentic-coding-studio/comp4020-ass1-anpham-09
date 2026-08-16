@@ -51,7 +51,11 @@ describe("artefact: the argument survives arrival", () => {
   });
 
   it("paints the week grid server-side", () => {
-    const cells = doc().querySelectorAll("[data-hour-cell]");
+    // Scoped to the grid: the legend swatches carry `data-hour-cell` too, so
+    // they can be coloured by the same rules.
+    const cells = doc().querySelectorAll(
+      '[data-testid="week-grid"] [data-hour-cell]',
+    );
     expect(cells.length, "the grid is a week, so it has 168 cells").toBe(168);
 
     const spent = [...cells].filter(

@@ -11,109 +11,143 @@
  * `astro check` reported `TOTAL` as an unresolvable name five times over while
  * the page worked fine in the browser. Logic the typechecker cannot see is
  * logic no test can import either, and the one thing this assignment insists on
- * is that the core interaction is testable. So the rule is: the page owns
- * markup, this module owns behaviour, and the script tag is a thin adapter
- * between them.
+ * is that the core interaction is testable.
  *
- * `summarise`, `detailText` and `statusFor` are pure and unit-tested.
- * `sync` is the only function that touches the DOM, and it takes its root as an
- * argument so a test can hand it a JSDOM built from the real `dist/index.html`.
+ * Everything here is pure. `src/lib/render.ts` is the only module that touches
+ * a DOM, and it imports from this one — which is what lets `index.astro`'s
+ * frontmatter and the browser compute the same numbers from the same code.
  */
 
 export const TOTAL_HOURS = 168;
+export const DAYS = 7;
+
+/**
+ * What an hour is *for*, which is not the same as what it is spent on.
+ *
+ * The distinction is the argument: essentials and commitments are claimed
+ * before the week starts, and what people call "free time" is the remainder.
+ * The grid and the insight engine both read this.
+ */
+export type Group = "essential" | "committed" | "discretionary";
 
 export interface Category {
   id: string;
   label: string;
   icon: string;
+  group: Group;
   max: number;
   step: number;
   colour: string;
   /** Restates the raw weekly figure in a unit people actually feel. */
   detail: (hours: number) => string;
+  /**
+   * A published average to sit behind the bar, where one honestly exists.
+   * Most categories have none: see the sourcing rule in CLAUDE.md.
+   */
+  anchor?: { hours: number; label: string };
 }
 
-const perDay = (hours: number): string => (hours / 7).toFixed(1);
+const perDay = (hours: number): string => (hours / DAYS).toFixed(1);
 
 export const CATEGORIES: Category[] = [
   {
     id: "sleep",
     label: "Sleep",
     icon: "🛏️",
+    group: "essential",
     max: 84,
     step: 7,
-    colour: "#4361ee",
+    colour: "var(--cat-sleep)",
     detail: (h) => `${perDay(h)} hrs/night`,
+    // ABS Time Use Survey 2020–21: Australians averaged about 8½ hours of
+    // sleep a day. Sleep is near-universal, so a per-person daily average is
+    // a fair thing to convert to a week. Most other ABS figures in that
+    // release are averages among participants only, which is why this is the
+    // one category carrying an anchor.
+    anchor: { hours: 59.5, label: "ABS average: 8.5 hrs/night" },
   },
   {
     id: "lectures",
     label: "Lectures & classes",
     icon: "📚",
+    group: "committed",
     max: 40,
     step: 1,
-    colour: "#e63946",
+    colour: "var(--cat-lectures)",
     detail: (h) => `${h} hrs of class/week`,
   },
   {
     id: "study",
     label: "Study & assignments",
     icon: "📝",
+    group: "committed",
     max: 60,
     step: 1,
-    colour: "#2a9d8f",
+    colour: "var(--cat-study)",
     detail: (h) => `${h} hrs/week outside class`,
   },
   {
     id: "work",
     label: "Paid work",
     icon: "💼",
+    group: "committed",
     max: 50,
     step: 1,
-    colour: "#e9c46a",
+    colour: "var(--cat-work)",
     detail: (h) => `${h} hrs/week`,
   },
   {
     id: "exercise",
     label: "Exercise",
     icon: "🏃",
+    group: "discretionary",
     max: 28,
     step: 1,
-    colour: "#7209b7",
+    colour: "var(--cat-exercise)",
     detail: (h) => `${perDay(h)} hrs/day`,
   },
   {
     id: "social",
     label: "Socialising",
     icon: "🎉",
+    group: "discretionary",
     max: 42,
     step: 1,
-    colour: "#f77f00",
+    colour: "var(--cat-social)",
     detail: (h) => `${perDay(h)} hrs/day`,
   },
   {
     id: "commute",
     label: "Commute & errands",
     icon: "🚌",
+    group: "committed",
     max: 28,
     step: 1,
-    colour: "#3a86a0",
+    colour: "var(--cat-commute)",
     detail: (h) => `${perDay(h)} hrs/day`,
   },
   {
     id: "selfcare",
     label: "Self-care & meals",
     icon: "🍽️",
+    group: "essential",
     max: 35,
     step: 1,
-    colour: "#8338ec",
+    colour: "var(--cat-selfcare)",
     detail: (h) => `${perDay(h)} hrs/day`,
   },
 ];
 
+export const CATEGORY_IDS = CATEGORIES.map(({ id }) => id);
+
+export function categoryById(id: string): Category | undefined {
+  return CATEGORIES.find((c) => c.id === id);
+}
+
 export type Allocations = Record<string, number>;
 
 /** Names every category, so a preset can never silently omit one. */
-const preset = (hours: Record<string, number>): Allocations =>
+export const preset = (hours: Record<string, number>): Allocations =>
   Object.fromEntries(CATEGORIES.map(({ id }) => [id, hours[id] ?? 0]));
 
 export const PRESETS: Record<string, Allocations> = {
@@ -141,6 +175,17 @@ export const PRESETS: Record<string, Allocations> = {
   }),
 };
 
+/**
+ * What the page opens on.
+ *
+ * Deliberately not an empty week. A blank set of sliders is a calculator and
+ * asks the visitor to do the work of finding the point; an already-allocated
+ * modest week *is* the point, and it is legible to someone who never touches
+ * a control. `index.astro` renders this in frontmatter so it survives with
+ * JavaScript switched off.
+ */
+export const DEFAULT_ALLOCATION: Allocations = PRESETS.balanced;
+
 export interface BudgetSummary {
   /** Hours allocated across every category. */
   total: number;
@@ -149,6 +194,17 @@ export interface BudgetSummary {
   over: boolean;
   /** Bar width as a percentage, clamped so an over-budget week still fits. */
   pct: number;
+  /** Hours in categories claimed before the week starts. */
+  committed: number;
+  /** Hours the visitor chose to spend on themselves. */
+  discretionary: number;
+}
+
+export function hoursIn(allocations: Allocations, group: Group): number {
+  return CATEGORIES.filter((c) => c.group === group).reduce(
+    (sum, { id }) => sum + (allocations[id] ?? 0),
+    0,
+  );
 }
 
 export function summarise(allocations: Allocations): BudgetSummary {
@@ -163,6 +219,8 @@ export function summarise(allocations: Allocations): BudgetSummary {
     remaining,
     over: total > TOTAL_HOURS,
     pct: Math.min((total / TOTAL_HOURS) * 100, 100),
+    committed: hoursIn(allocations, "essential") + hoursIn(allocations, "committed"),
+    discretionary: hoursIn(allocations, "discretionary"),
   };
 }
 
@@ -170,79 +228,58 @@ export function detailText(id: string, hours: number): string {
   // A zero row says nothing worth saying, and blanking it keeps the card from
   // reflowing as the slider crosses zero.
   if (hours === 0) return " ";
-  return CATEGORIES.find((c) => c.id === id)?.detail(hours) ?? "";
+  return categoryById(id)?.detail(hours) ?? "";
 }
 
-export function statusFor({ remaining, over }: BudgetSummary): {
+export interface Status {
   text: string;
   modifier: string;
-} {
+}
+
+/**
+ * The verdict, including the two edge cases worth having a voice about.
+ *
+ * Takes the raw allocations as well as the summary because "you set sleep to
+ * zero" is not a fact about the total — and an explainer with a point of view
+ * should have something to say when the visitor tests it.
+ */
+export function statusFor(
+  { remaining, over, total }: BudgetSummary,
+  allocations: Allocations = {},
+): Status {
+  if (total === 0) {
+    return {
+      modifier: "status-void",
+      text:
+        "168 hours and nothing to do. That's not a week, that's a void — " +
+        "start putting something in it.",
+    };
+  }
+  if ((allocations.sleep ?? 0) === 0) {
+    return {
+      modifier: "status-over",
+      text: "Zero sleep? You'll last about three days. Give it some hours.",
+    };
+  }
   if (over) {
     return {
       modifier: "status-over",
-      text: `You're ${Math.abs(remaining)} hours over budget. Something has to give.`,
+      text: `You're ${Math.abs(remaining)} hours over budget. Something has to give — and it will, whether you choose it or not.`,
     };
   }
   if (remaining === 0) {
     return {
       modifier: "status-exact",
-      text: "Every hour accounted for. No room to breathe.",
+      text: "Every hour accounted for. No room to breathe, and no room for anything going wrong.",
     };
   }
   return {
     modifier: "status-under",
-    text: `${remaining} hours unallocated — that's ${perDay(remaining)} hrs/day of free time.`,
+    text: `${remaining} hours unallocated — that's ${perDay(remaining)} hrs/day of genuinely free time.`,
   };
 }
 
-/**
- * Writes a set of allocations onto the page and returns what it computed.
- *
- * `root` is a parameter rather than an assumed `document` so the spec test can
- * pass a JSDOM of the built page: that is what makes "the readout moves when
- * the visitor allocates hours" assertable without a browser.
- */
-export function sync(root: ParentNode, allocations: Allocations): BudgetSummary {
-  const summary = summarise(allocations);
-  const { total, over, pct } = summary;
-
-  for (const { id } of CATEGORIES) {
-    const hours = allocations[id] ?? 0;
-
-    const hoursEl = root.querySelector(`[data-hours-for="${id}"]`);
-    if (hoursEl) hoursEl.textContent = `${hours} hrs`;
-
-    const detailEl = root.querySelector(`[data-detail-for="${id}"]`);
-    if (detailEl) detailEl.textContent = detailText(id, hours);
-
-    const row = root.querySelector(`[data-bar-for="${id}"]`);
-    if (row) {
-      const share = Math.round((hours / TOTAL_HOURS) * 100);
-      const bar = row.querySelector<HTMLElement>(".bar-fill");
-      const pctLabel = row.querySelector(".bar-pct");
-      if (bar) bar.style.width = `${share}%`;
-      if (pctLabel) pctLabel.textContent = `${share}%`;
-    }
-  }
-
-  const used = root.querySelector<HTMLElement>('[data-testid="budget-used"]');
-  if (used) {
-    used.textContent = `${total} / ${TOTAL_HOURS} hrs`;
-    used.dataset.over = String(over);
-  }
-
-  const barFill = root.querySelector<HTMLElement>('[data-testid="budget-bar"]');
-  if (barFill) {
-    barFill.style.width = `${pct}%`;
-    barFill.dataset.over = String(over);
-  }
-
-  const status = root.querySelector('[data-testid="status-message"]');
-  if (status) {
-    const { text, modifier } = statusFor(summary);
-    status.className = `status-msg ${modifier}`;
-    status.textContent = text;
-  }
-
-  return summary;
+/** Weekly hours restated as the daily minutes they actually cost. */
+export function dailyMinutes(weeklyHours: number): number {
+  return Math.round((weeklyHours * 60) / DAYS);
 }
