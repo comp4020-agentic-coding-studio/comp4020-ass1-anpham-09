@@ -6,9 +6,11 @@
 has 168 hours, and every hour spent on one thing is an hour not spent on
 something else. Eight sliders cover sleep, classes, study,
 paid work, exercise, socialising, commuting and self-care; a budget bar tracks
-the total; the verdict flips from hours-remaining to hours-overspent when the
-week stops fitting. The argument is in the arithmetic, not the prose: the
-"Balanced week" preset sounds modest and spends 141 of the 168.
+the total; the hours that don't fit are drawn outside the grid rather than
+counted under it
+([`e2b25a5`](https://github.com/comp4020-agentic-coding-studio/comp4020-ass1-anpham-09/commit/e2b25a5)).
+The argument is arithmetic, not prose: the "Balanced week" preset sounds modest
+and spends 141 of the 168.
 
 ## The moments that mattered
 
@@ -60,11 +62,11 @@ week stops fitting. The argument is in the arithmetic, not the prose: the
 
 ## What is still open
 
-Chrome on macOS would not drive a window narrow enough for the 390px viewport,
-so I loaded the built page into a same-origin 390×844 iframe, where media
-queries resolve against the frame: single column, no horizontal overflow,
-verdict intact. What that cannot tell me is how the sliders feel under a thumb,
-so they go in front of a person first. It is also four screens deep before the
-first slider, which the desktop split
-([`d42eaa0`](https://github.com/comp4020-agentic-coding-studio/comp4020-ass1-anpham-09/commit/d42eaa0))
-does nothing for.
+Chrome on macOS would not drive a window narrow enough for 390px, so I loaded
+the built page into a same-origin 390×844 iframe, where media queries resolve
+against the frame: single column, no overflow, verdict intact. What that cannot
+tell me is how the sliders feel under a thumb, so they go in front of a person
+first. It is also four screens deep before the
+first slider, which the desktop split and the strip-back after it
+([`d42eaa0...f5bbd37`](https://github.com/comp4020-agentic-coding-studio/comp4020-ass1-anpham-09/compare/d42eaa0...f5bbd37))
+barely move.
