@@ -207,6 +207,21 @@ export function hoursIn(allocations: Allocations, group: Group): number {
   );
 }
 
+/**
+ * Going over 168 is allowed, and the page says so rather than preventing it.
+ *
+ * The alternative I considered was a hard constraint: raising one slider steals
+ * hours from another, so the total can never exceed 168. That enforces the
+ * arithmetic, but it makes the wrong argument. It says "you cannot overcommit",
+ * and the true thing — the thing a student actually recognises — is that you
+ * absolutely can, and the hours come out of sleep without you deciding. A page
+ * that won't let you build an impossible week can't show you the one you're
+ * already living in.
+ *
+ * So the model is soft: `over` is a fact reported back, not a rule enforced.
+ * `pct` clamps at 100 because the bar is a bar, but `remaining` goes negative
+ * and stays negative, and `statusFor` names the debt.
+ */
 export function summarise(allocations: Allocations): BudgetSummary {
   const total = CATEGORIES.reduce(
     (sum, { id }) => sum + (allocations[id] ?? 0),
