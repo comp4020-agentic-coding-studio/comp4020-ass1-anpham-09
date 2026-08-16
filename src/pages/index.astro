@@ -130,6 +130,13 @@ const freeCells = week.cells.filter((c) => c === "free").length;
           </ul>
         </nav>
 
+        {/*
+          The grid and the controls that change it, in one wrapper so a wide
+          screen can put them side by side. Source order stays week → status →
+          insights → controls, which is both the reading order and the left-to-
+          right visual order once it splits; see .workbench in global.css.
+        */}
+        <div class="workbench">
         <section class="week-section" aria-labelledby="week-heading">
           <h2 id="week-heading">Your week, one cell per hour</h2>
           <div
@@ -259,6 +266,7 @@ const freeCells = week.cells.filter((c) => c === "free").length;
             <span class="share-note" data-testid="share-note" role="status" aria-live="polite"></span>
           </div>
         </section>
+        </div>
 
         <section class="breakdown" aria-labelledby="breakdown-heading">
           <h2 id="breakdown-heading">Where your week goes</h2>

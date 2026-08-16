@@ -328,6 +328,63 @@ a {
   color: var(--text);
 }
 
+/* ----------------------------------------------------------- workbench */
+
+/*
+  The grid and the sliders that redraw it, side by side once there is room.
+  Stacked, the first slider sat 1373px down a page whose fold is at 1080 — so
+  the one thing the page is built to show, that moving this redraws that, was
+  never in a single eyeful, and a 62rem column left ~900px of a 1920 screen
+  empty either side. Both are the same fix: split the row and spend the width
+  on the grid.
+
+  Explicit placement rather than a second wrapper, so the markup stays one
+  level flatter; the left column is rows 1-3 and the controls span all of them.
+*/
+@media (width >= 78rem) {
+  /* Every shell, not just this one: widening the content column alone left the
+     hero and the budget bar starting 200px to the right of the grid, which
+     reads as a mistake. The prose inside is already capped at a reading
+     measure, so widening only moves the gutter. */
+  .shell {
+    max-width: 104rem;
+  }
+
+  .workbench {
+    display: grid;
+
+    /* Weighted to the grid: the first split I tried was 1.15fr and it bought
+       the sliders' position by shrinking the 168 cells from 39px to 28px.
+       Moving the controls up is not worth shrinking the thing they move. */
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    column-gap: 2.5rem;
+    align-items: start;
+  }
+
+  .workbench .week-section {
+    grid-area: 1 / 1;
+  }
+
+  .workbench .status-msg {
+    grid-area: 2 / 1;
+  }
+
+  .workbench .insights-section {
+    grid-area: 3 / 1;
+  }
+
+  .workbench .controls {
+    grid-area: 1 / 2 / 4 / 3;
+    margin-top: 2rem;
+  }
+
+  /* The container got wider; prose still wants a reading measure. */
+  .breakdown,
+  .conclusion {
+    max-width: 62rem;
+  }
+}
+
 /* ----------------------------------------------------------- week grid */
 
 .week-section {
