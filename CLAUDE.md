@@ -21,10 +21,16 @@ you plan or build, and see `spec/README.md` for how the checks relate to them.
 - Keep the dev server running (`pnpm dev`) so you see changes as you make them.
 - Before you push, run `pnpm check`. It runs most of what CI runs --- build,
   lint, and the spec --- so you catch those in seconds instead of waiting for
-  the pipeline. The links check, the evidence check, the secrets scan, and the
-  deploy itself only run in CI; run `pnpm dlx linkinator ./dist --silent`
-  locally against a fresh `pnpm build` for the links check without waiting for
-  CI.
+  the pipeline. The evidence check, the secrets scan, and the deploy itself only
+  run in CI; `pnpm check:evidence` and `pnpm check:links` cover the first two
+  locally.
+- **Don't run `linkinator ./dist` — it lies.** The starter used to recommend it,
+  and `.github/workflows/checks.yml` has already moved off it for the reason you
+  will hit: linkinator crawls `dist/` as if it were the server root, so every
+  `base`-prefixed href resolves to `dist/comp4020-ass1-anpham-09/…`, which does
+  not exist locally, and it reports 404s for a site that serves perfectly on
+  Pages. `pnpm check:links` (`spec/links.test.ts`) resolves them the way Pages
+  does. Trust that one.
 - To see what the page actually looks like rather than what you assume it looks
   like, open it in a browser (the `agent-browser` CLI, documented on
   [the course site](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/topics/backpressure/#agent-browser-the-rendered-page-as-ground-truth),
