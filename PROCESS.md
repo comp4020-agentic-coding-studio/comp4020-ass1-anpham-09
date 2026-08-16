@@ -59,7 +59,9 @@ the 168; the "All-in" preset does not fit at all.
 
 ## What is still open
 
-The desktop viewport I verified in a real browser, including the over-budget
-state. The phone viewport I verified only by reading the mobile-first CSS, since
-Chrome on macOS would not let me drive the window narrow enough to render it.
-That gap is named here rather than papered over.
+Chrome on macOS would not let me drive a window narrow enough to render the
+390px viewport, and reading the mobile-first CSS is not seeing it. So I loaded
+the built page into a same-origin 390×844 iframe, where media queries resolve
+against the frame: single column, no horizontal overflow, over-budget verdict
+intact. What that cannot tell me is how the sliders feel under a thumb, so they
+are what I would put in front of a person first.

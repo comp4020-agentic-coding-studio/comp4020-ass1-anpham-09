@@ -35,7 +35,18 @@ you plan or build, and see `spec/README.md` for how the checks relate to them.
   like, open it in a browser (the `agent-browser` CLI, documented on
   [the course site](https://comp.anu.edu.au/courses/comp4020-agentic-coding-studio/topics/backpressure/#agent-browser-the-rendered-page-as-ground-truth),
   works well for this). The rendered page is the truth; your mental model of it
-  isn't.
+  isn't. Two things that cost me time here: a screenshot is a moment, not a
+  state, so a CSS transition caught mid-flight looks exactly like a bug --- zoom
+  or wait before believing it; and content that seems to have vanished is
+  usually just below the fold, so scroll before diagnosing.
+- **To render the 390×844 marking viewport, use an iframe, not the window.**
+  Chrome on macOS clamps how narrow a window can go, so `resize_window` reports
+  success and the page still lays out at ~1500px. Load the built page into a
+  same-origin `<iframe>` sized 390×844 instead: media queries resolve against
+  the frame, so the phone layout genuinely renders. Read `innerWidth`,
+  `documentElement.scrollWidth` and the computed `grid-template-columns` off
+  `iframe.contentDocument` --- scrollWidth exceeding innerWidth is horizontal
+  overflow, which is the failure this viewport is checked for.
 - When a check fails, read its output before changing anything. Each check below
   names what it measures, and the failure message is the instruction: it tells
   you the file, the line, or the contract. Treat a red check as authoritative
