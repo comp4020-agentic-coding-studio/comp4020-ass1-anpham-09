@@ -42,7 +42,11 @@ jobs:
         if: ${{ !github.event.repository.is_template }}
         run: pnpm check:evidence
       - name: Check internal links
-        run: pnpm dlx linkinator ./dist --silent
+        # Was `pnpm dlx linkinator ./dist --silent`, which crawls dist as the
+        # server root and so reported every base-prefixed href as a 404 while
+        # the deployed site served them fine. spec/links.test.ts resolves them
+        # the way Pages does — see the comment at the top of that file.
+        run: pnpm check:links
       - name: Scan for committed secrets
         # Pinned, both halves: the SHA fixes the action's script, and `version`
         # fixes the scanner image, which otherwise floats on :latest. These two
