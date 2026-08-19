@@ -18,6 +18,23 @@ Then I broke it on purpose to check it worked. Commenting out one line in
 `sync()` turned exactly the two tests that should have failed red. That was the
 first time a test told me something I didn't already believe.
 
+## The harness, and a rule I got wrong
+
+The other change was where corrections live. For most of the week I fixed the
+agent's output in review, and the fix stayed in the chat — so the next request
+started from the same defaults and produced the same competent dashboard.
+
+The redesign went the other way: three rules into `CLAUDE.md` first, then the
+CSS. Colour belongs to the grid. Chrome is a hairline or it is nothing. The
+serif is the display voice. Written as constraints with the reason attached,
+they held in places I never enumerated.
+
+Then the third turned out to be wrong. I had written that the serif was for the
+heading alone, and the CSS I wrote next put it on the running total too. I
+revised the rule, not the page — the total really is the second thing the page
+is about. A harness the code contradicts is worse than none: it teaches you to
+skim the file.
+
 ## What it changed
 
 I've been treating checks as a gate to get through. This week they were the
